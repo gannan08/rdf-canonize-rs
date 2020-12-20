@@ -46,7 +46,7 @@ lazy_static! {
     static ref QUAD_REGEX: Regex = Regex::new(&QUAD).unwrap();
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 enum TermType {
   BlankNode,
   IRI,
@@ -55,19 +55,19 @@ enum TermType {
   DefaultGraph,
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 struct Subject {
   term_type: TermType,
   value: String,
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 struct Predicate {
   term_type: TermType,
   value: String,
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 struct Object {
   term_type: TermType,
   value: String,
@@ -75,7 +75,7 @@ struct Object {
   language: Option<String>,
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct Quad {
   subject: Subject,
   predicate: Predicate,
@@ -83,7 +83,7 @@ pub struct Quad {
   graph: String,
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct Dataset {
   pub quads: Vec<Quad>,
 }
@@ -316,5 +316,69 @@ mod tests {
       language: Some(String::from("fr")),
     };
     assert_ne!(object_a, object_b);
+  }
+
+  #[test]
+  fn quad_equals() {
+    let subject = Subject {
+      term_type: TermType::IRI,
+      value: String::from("foobar"),
+    };
+    let predicate = Predicate {
+      term_type: TermType::IRI,
+      value: String::from("ganesh"),
+    };
+    let object = Object {
+      term_type: TermType::IRI,
+      value: String::from("ganesh"),
+      datatype: Some(String::from("http://example.com/t2")),
+      language: None,
+    };
+
+    let quad_a = Quad {
+      subject: subject.clone(),
+      predicate: predicate.clone(),
+      object: object.clone(),
+      graph: String::from("@graph")
+    };
+    let quad_b = Quad {
+      subject,
+      predicate,
+      object,
+      graph: String::from("@graph")
+    };
+    assert_eq!(quad_a, quad_b);
+  }
+
+  #[test]
+  fn quad_not_equals() {
+    let subject = Subject {
+      term_type: TermType::IRI,
+      value: String::from("foobar"),
+    };
+    let predicate = Predicate {
+      term_type: TermType::IRI,
+      value: String::from("ganesh"),
+    };
+    let object = Object {
+      term_type: TermType::IRI,
+      value: String::from("ganesh"),
+      datatype: Some(String::from("http://example.com/t2")),
+      language: None,
+    };
+
+    let quad_a = Quad {
+      subject: subject.clone(),
+      predicate: predicate.clone(),
+      object: object.clone(),
+      graph: String::from("@graph")
+    };
+    let quad_b = Quad {
+      subject,
+      predicate,
+      object,
+      graph: String::from("")
+    };
+    assert_ne!(quad_a, quad_b);
   }
 }
