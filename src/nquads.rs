@@ -1,5 +1,6 @@
 extern crate regex;
 
+use std::collections::HashMap;
 use regex::Regex;
 
 // define partial regexes
@@ -83,14 +84,35 @@ pub struct Quad {
   graph: String,
 }
 
+pub type QuadSet = Vec<Quad>;
+
 #[derive(Clone, Debug, PartialEq)]
 pub struct Dataset {
-  pub quads: Vec<Quad>,
+  pub quads: QuadSet,
+  graph_map: HashMap<String, Vec<usize>>
 }
 
 impl Dataset {
   fn new() -> Dataset {
-    Dataset { quads: Vec::new() }
+    Dataset { quads: Vec::new(), graph_map: HashMap::new() }
+  }
+
+  fn add(&mut self, quad: Quad) -> bool {
+    let graph = quad.graph.clone();
+    match self.graph_map.get_mut(&graph) {
+      Some(quad_ptrs) => {
+        quad_ptrs.push(self.quads.len());
+      },
+      None => {
+        let mut quad_ptrs = Vec::new();
+        quad_ptrs.push(self.quads.len());
+        self.graph_map.insert(graph, quad_ptrs);
+      }
+    }
+
+    self.quads.push(quad);
+
+    true
   }
 }
 
@@ -102,7 +124,7 @@ pub fn parse_nquads(dataset: &str) -> Dataset {
   for line in lines {
     println!("{}", line);
     let quad = parse_nquad(&line);
-    rdf_dataset.quads.push(quad);
+    rdf_dataset.add(quad);
   }
 
   rdf_dataset
@@ -227,7 +249,6 @@ fn escape_string(unescaped: &str) -> String {
   escaped
 }
 
-#[cfg(test)]
 #[cfg(test)]
 mod tests {
   use super::*;
