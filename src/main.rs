@@ -5,6 +5,7 @@ use std::env;
 use std::fs;
 
 mod nquads;
+mod urdna2015;
 
 fn main() {
     let args: Vec<String> = env::args().collect();
@@ -17,5 +18,5 @@ fn main() {
 
     let rdf_dataset = nquads::parse_nquads(&dataset);
 
-    println!("{:#?}", rdf_dataset);
+    urdna2015::main(&rdf_dataset);
 }
