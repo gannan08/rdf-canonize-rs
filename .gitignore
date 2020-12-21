@@ -1,3 +1,4 @@
 /target
 tests/
 _normalization/
+.vscode
