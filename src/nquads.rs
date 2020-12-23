@@ -61,7 +61,7 @@ pub trait Term {
   fn get_term_type(&self) -> TermType;
   fn set_term_type(&mut self, term_type: &TermType);
   fn get_value(&self) -> String;
-  fn set_value(&mut self, value: &String);
+  fn set_value(&mut self, value: &str);
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -99,8 +99,8 @@ impl Term for Subject {
     self.value.clone()
   }
 
-  fn set_value(&mut self, value: &String) {
-    self.value = value.clone();
+  fn set_value(&mut self, value: &str) {
+    self.value = value.to_string();
   }
 }
 
@@ -129,8 +129,8 @@ impl Term for Predicate {
     self.value.clone()
   }
 
-  fn set_value(&mut self, value: &String) {
-    self.value = value.clone();
+  fn set_value(&mut self, value: &str) {
+    self.value = value.to_string();
   }
 }
 
@@ -163,8 +163,8 @@ impl Term for Object {
     self.value.clone()
   }
 
-  fn set_value(&mut self, value: &String) {
-    self.value = value.clone();
+  fn set_value(&mut self, value: &str) {
+    self.value = value.to_string();
   }
 }
 
@@ -193,8 +193,8 @@ impl Term for Graph {
     self.value.clone()
   }
 
-  fn set_value(&mut self, value: &String) {
-    self.value = value.clone();
+  fn set_value(&mut self, value: &str) {
+    self.value = value.to_string();
   }
 }
 
