@@ -1,14 +1,7 @@
-#[macro_use]
-extern crate lazy_static;
+extern crate rdf_canonize;
 
 use std::env;
 use std::fs;
-
-mod identifier_issuer;
-mod message_digest;
-mod nquads;
-mod permuter;
-mod urdna2015;
 
 fn main() {
     let args: Vec<String> = env::args().collect();
@@ -17,14 +10,15 @@ fn main() {
 
     println!("Filename {}", filename);
 
-    let dataset = fs::read_to_string(filename)
+    let dataset_str = fs::read_to_string(filename)
         .expect("Something went wrong reading the file");
 
     println!("INPUT:");
-    let rdf_dataset = nquads::parse_nquads(&dataset);
+    let rdf_dataset = rdf_canonize::nquads::parse_nquads(&dataset_str);
 
     println!();
-    let serialized_nquads = urdna2015::URDNA2015::new().main(&rdf_dataset);
+    let serialized_nquads =
+        rdf_canonize::canonize(&rdf_dataset, "URDNA2015").unwrap();
     println!("OUTPUT:");
     println!("{}", serialized_nquads);
 }

@@ -1,0 +1,16 @@
+#[macro_use]
+extern crate lazy_static;
+
+pub mod nquads;
+
+mod identifier_issuer;
+mod message_digest;
+mod permuter;
+mod urdna2015;
+
+pub fn canonize(dataset: &nquads::Dataset, algorithm: &str) -> Option<String> {
+  match algorithm {
+    "URDNA2015" => Some(urdna2015::URDNA2015::new().main(&dataset)),
+    _ => None,
+  }
+}
