@@ -77,11 +77,9 @@ impl URDNA2015 {
     // identifiers:
     let mut hash_to_blank_nodes = HashBlankNodeMap::new();
     let non_normalized: Vec<String> = self.blank_node_info.keys().cloned().collect();
-    println!("non_normalized: {:?}", non_normalized);
     for id in &non_normalized {
       self.hash_and_track_blank_node(id, &mut hash_to_blank_nodes)
     }
-    println!("hash_to_blank_nodes: {:#?}", hash_to_blank_nodes);
 
     // 5.4) For each hash to identifier list mapping in hash to blank
     // nodes map, lexicographically-sorted by hash:
@@ -105,7 +103,6 @@ impl URDNA2015 {
       // for identifier.
       let id = &id_list[0];
       self.canonical_issuer.get_id(id.to_string());
-      println!("id: {:?}", id);
 
       // Note: These steps are skipped, optimized away since the loop
       // only needs to be run once.
@@ -121,15 +118,11 @@ impl URDNA2015 {
       // 6.1) Create hash path list where each item will be a result of
       // running the Hash N-Degree Quads algorithm.
       let mut hash_path_list = vec![];
-      id_list.sort_by(|a, b| natural_lexical_cmp(&a, &b));
       // 6.2) For each blank node identifier identifier in identifier list:
       for id in id_list {
-        println!("combo-id: {} {:?}", id, self.canonical_issuer);
         // 6.2.1) If a canonical identifier has already been issued for
         // identifier, continue to the next identifier.
-        // zzzzz 3940a74f4f3f335de393ef790d0994591fedb3e29f00aa2e3a202fc63d552ad2
         if self.canonical_issuer.has_id(&id) {
-          println!("combo-id: {} - TRUE", id);
           continue;
         }
 
@@ -145,33 +138,24 @@ impl URDNA2015 {
         // 6.2.4) Run the Hash N-Degree Quads algorithm, passing
         // temporary issuer, and append the result to the hash path list.
         let result = self.hash_N_degree_quads(&id, &mut issuer);
-        println!("[{}] ============================================", id);
-        println!("[{}] result: {:?}", id, result);
         hash_path_list.push(result);
       }
 
       // 6.3) For each result in the hash path list,
       // lexicographically-sorted by the hash in result:
       hash_path_list.sort_by(|a, b| natural_lexical_cmp(&a.0, &b.0));
-      let len = hash_path_list.len();
       for result in hash_path_list {
         // 6.3.1) For each blank node identifier, existing identifier,
         // that was issued a temporary identifier by identifier issuer
         // in result, issue a canonical identifier, in the same order,
         // using the Issue Identifier algorithm, passing canonical
         // issuer and existing identifier.
-        // zzzzzz ORDER (2 hash path list length): adcc9b8599475ab8f9b13d88f685efbc850f8a51673f04c5a24014742913951f
-        println!("ORDER: ({} hash path list length) {} ", len, result.0);
         let old_ids = result.1.get_old_ids();
-        println!("old_ids: {:?}", old_ids);
         for id in old_ids {
           self.canonical_issuer.get_id(id.to_string());
         }
       }
     }
-    println!("non_unique: {:#?}", non_unique);
-    println!("final-issuer {:#?}", self.canonical_issuer);
-
     /* Note: At this point all blank nodes in the set of RDF quads have been
     assigned canonical identifiers, which have been stored in the canonical
     issuer. Here each quad is updated by assigning each of its blank nodes
@@ -191,7 +175,7 @@ impl URDNA2015 {
       // 7.2) Add quad copy to the normalized dataset.
       normalized.push(nquads::serialize_quad(&q));
     }
-    println!("{:?}", normalized);
+
     // sort normalized output
     normalized.sort();
 
@@ -262,7 +246,6 @@ impl URDNA2015 {
     } else if let Some(info) = self.blank_node_info.get(related) {
       id = info.hash.as_ref().unwrap().to_string();
     } else {
-      println!("BAAAADDDDD: {:?}", related);
       id = "".to_string();
     }
 
@@ -296,7 +279,6 @@ impl URDNA2015 {
     // Note: 2) and 3) handled within `createHashToRelated`
     let mut hasher = Sha256::new();
     let mut hash_to_related = self.create_hash_to_related(id, &mut issuer.clone());
-    println!("hash_to_related: {:#?}", hash_to_related);
 
     // 4) Create an empty string, data to hash.
     // Note: We created a hash object `hasher` above instead.
@@ -305,7 +287,7 @@ impl URDNA2015 {
     // blank nodes map, sorted lexicographically by related hash:
     let mut hashes: Vec<String> = hash_to_related.keys().cloned().collect::<Vec<String>>();
     hashes.sort();
-    println!("hashes: {:?}", hashes);
+
     for hash in hashes {
       // 5.1) Append the related hash to the data to hash.
       hasher.update(&hash);
@@ -317,10 +299,8 @@ impl URDNA2015 {
 
       // 5.4) For each permutation of blank node list:
       let mut permuter = Permuter::new(hash_to_related.get_mut(&hash).unwrap());
-      println!("hash: {:?}", hash);
       while permuter.has_next() {
         let permutation = permuter.next();
-        println!("permutation: {:?}", permutation);
         // 5.4.1) Create a copy of issuer, issuer copy.
         let mut issuer_copy = issuer.clone();
 
@@ -334,7 +314,6 @@ impl URDNA2015 {
         // 5.4.4) For each related in permutation:
         let mut next_permutation = false;
         for related in permutation.iter() {
-          println!("related: {:?}", related);
           // 5.4.4.1) If a canonical identifier has been issued for
           // related, append it to path.
           if self.canonical_issuer.has_id(&related) {
@@ -357,37 +336,22 @@ impl URDNA2015 {
           // skip to the next permutation.
           // Note: Comparing path length to chosen path length can be optimized
           // away; only compare lexicographically.
-          println!(
-            "1: chosen_path: {} length: {} path: {} comparison {}",
-            chosen_path,
-            chosen_path.len(),
-            path.join(""),
-            (chosen_path.is_empty()
-              && natural_lexical_cmp(&path.join(""), &chosen_path) == std::cmp::Ordering::Less)
-          );
           if chosen_path.is_empty() && path.join("") < chosen_path {
-            println!("1: CALLED");
             next_permutation = true;
-            // break;
+            break;
           }
-          println!("2: CALLED {}", next_permutation);
         }
 
-        println!("1 next_permutation {}", next_permutation);
         if next_permutation {
           continue;
         }
 
-        println!("recursion_list {:?}", recursion_list);
         // 5.4.5) For each related in recursion list:
         for related in recursion_list.iter() {
           // 5.4.5.1) Set result to the result of recursively executing
           // the Hash N-Degree Quads algorithm, passing related for
           // identifier and issuer copy for path identifier issuer.
-          println!("[{}] START+++++++++++++++++++++++++++++++++++++++++", id);
           let result = self.hash_N_degree_quads(related, &mut issuer_copy);
-          println!("[{}] result: {:?}", id, result);
-          println!("[{}] END+++++++++++++++++++++++++++++++++++++++++", id);
           // 5.4.5.2) Use the Issue Identifier algorithm, passing issuer
           // copy and related and append the result to path.
           path.push(issuer_copy.get_id(related.to_string()));
@@ -405,20 +369,12 @@ impl URDNA2015 {
           // skip to the next permutation.
           // Note: Comparing path length to chosen path length can be optimized
           // away; only compare lexicographically.
-          println!(
-            "2: chosen_path: {} length: {} path: {}",
-            chosen_path,
-            chosen_path.len(),
-            path.join("")
-          );
           if chosen_path.is_empty() && path.join("") < chosen_path {
-            println!("2: CALLED");
             next_permutation = true;
             break;
           }
         }
 
-        println!("2 next_permutation: {}", next_permutation);
         if next_permutation {
           continue;
         }
@@ -427,16 +383,9 @@ impl URDNA2015 {
         // less than chosen path, set chosen path to path and chosen
         // issuer to issuer copy.
         let path_str = path.join("");
-        println!(
-          "3: chosen_path: {} length: {} path: {}",
-          chosen_path,
-          chosen_path.len(),
-          path.join("")
-        );
         if chosen_path.is_empty() || path_str < chosen_path {
           chosen_path = path_str;
           chosen_issuer = issuer_copy;
-          println!("CHOSEN ISSUER: {:?}", chosen_issuer);
         }
       }
 
@@ -444,12 +393,10 @@ impl URDNA2015 {
       hasher.update(chosen_path);
 
       // 5.6) Replace issuer, by reference, with chosen issuer.
-      println!("(before) ISSUER: {:?}", issuer);
       issuer.prefix = chosen_issuer.prefix.clone();
       issuer.counter = chosen_issuer.counter;
       issuer.existing = chosen_issuer.existing.clone();
       issuer.old_ids = chosen_issuer.old_ids.clone();
-      println!("(after) ISSUER: {:?} {:?}", issuer.get_old_ids(), issuer);
     }
 
     (hex::encode(hasher.finalize()), issuer.clone())
@@ -494,7 +441,6 @@ impl URDNA2015 {
 
     // 3) For each quad in quads:
     for quad in quads {
-      println!("QUUUAAAAD: {:#?}", quad);
       // 3.1) For each component in quad, if component is the subject, object,
       // or graph name and it is a blank node that is not identified by
       // identifier:
@@ -511,7 +457,6 @@ impl URDNA2015 {
     // 5.3.1) Create a hash, hash, according to the Hash First Degree
     // Quads algorithm.
     let hash = self.hash_first_degree_quads(id);
-    println!("{}", &hash);
 
     // 5.3.2) Add hash and identifier to hash to blank nodes map,
     // creating a new entry if necessary.
