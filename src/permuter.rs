@@ -69,10 +69,7 @@ impl Permuter {
     let length = current.len();
     for (i, element) in current.iter().enumerate() {
       let left = dir.get(element);
-      let left_exists = match left {
-        Some(&left) => true,
-        None => false,
-      };
+      let left_exists = left.is_some();
       if let Some(tmp_k) = &k {
         k_is_none = false;
         k_val = tmp_k.to_string();

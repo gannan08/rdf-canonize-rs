@@ -27,17 +27,14 @@ impl IdentifierIssuer {
   pub fn get_id(&mut self, old: String) -> String {
     // return existing old identifier
     if let Some(existing) = self.existing.get(&old) {
-      // println!("getid existing: {} map: {:#?}", existing, self.existing);
       return existing.to_string();
     }
 
     // get next identifier
     let identifier = self.prefix.to_string() + &self.counter.to_string();
     self.counter += 1;
-    // println!("identifier: {}", identifier);
 
     // save mapping
-    // println!("SET OLD {} -> {}", old, identifier);
     self.old_ids.push(old.clone());
     self.existing.insert(old, identifier.to_string());
     identifier
