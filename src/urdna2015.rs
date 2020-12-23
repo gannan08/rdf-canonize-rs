@@ -1,10 +1,11 @@
 use crate::identifier_issuer::IdentifierIssuer;
+use crate::message_digest::MessageDigest;
 use crate::nquads;
 use crate::nquads::{Dataset, Quad, QuadSet, Term, TermType};
 use crate::permuter::Permuter;
 
 use lexical_sort::natural_lexical_cmp;
-use sha2::{Digest, Sha256};
+use sha2::Sha256;
 use std::collections::HashMap;
 
 const NAME: &str = "URDNA2015";
@@ -52,9 +53,6 @@ impl URDNA2015 {
       // 2.1) For each blank node that occurs in the quad, add a reference
       // to the quad using the blank node identifier in the blank node to
       // quads map, creating a new entry if necessary.
-      println!("Processing Quad");
-      println!("{:?}", quad);
-
       self.add_blank_node_quad_info(&quad, &quad.subject);
       self.add_blank_node_quad_info(&quad, &quad.object);
       self.add_blank_node_quad_info(&quad, &quad.graph);
@@ -76,14 +74,14 @@ impl URDNA2015 {
     // 5.3) For each blank node identifier identifier in non-normalized
     // identifiers:
     let mut hash_to_blank_nodes = HashBlankNodeMap::new();
-    let non_normalized: Vec<String> = self.blank_node_info.keys().cloned().collect();
+    let non_normalized = hashmap_keys_to_vec(&self.blank_node_info);
     for id in &non_normalized {
       self.hash_and_track_blank_node(id, &mut hash_to_blank_nodes)
     }
 
     // 5.4) For each hash to identifier list mapping in hash to blank
     // nodes map, lexicographically-sorted by hash:
-    let mut hashes: Vec<String> = hash_to_blank_nodes.keys().cloned().collect::<Vec<String>>();
+    let mut hashes = hashmap_keys_to_vec(&hash_to_blank_nodes);
     hashes.sort();
     // optimize away second sort, gather non-unique hashes in order as we go
     let mut non_unique: Vec<Vec<String>> = Vec::new();
@@ -137,7 +135,7 @@ impl URDNA2015 {
 
         // 6.2.4) Run the Hash N-Degree Quads algorithm, passing
         // temporary issuer, and append the result to the hash path list.
-        let result = self.hash_N_degree_quads(&id, &mut issuer);
+        let result = self.hash_n_degree_quads(&id, &mut issuer);
         hash_path_list.push(result);
       }
 
@@ -169,9 +167,12 @@ impl URDNA2015 {
       // previously issued by canonical issuer.
       // Note: We optimize with shallow copies here.
       let mut q = quad.clone();
-      q.subject = Self::use_canonical_id(&mut q.subject, &mut self.canonical_issuer);
-      q.object = Self::use_canonical_id(&mut q.object, &mut self.canonical_issuer);
-      q.graph = Self::use_canonical_id(&mut q.graph, &mut self.canonical_issuer);
+      q.subject =
+        Self::use_canonical_id(&mut q.subject, &mut self.canonical_issuer);
+      q.object =
+        Self::use_canonical_id(&mut q.object, &mut self.canonical_issuer);
+      q.graph =
+        Self::use_canonical_id(&mut q.graph, &mut self.canonical_issuer);
       // 7.2) Add quad copy to the normalized dataset.
       normalized.push(nquads::serialize_quad(&q));
     }
@@ -180,7 +181,6 @@ impl URDNA2015 {
     normalized.sort();
 
     // 8) Return the normalized dataset.
-    println!("{}", normalized.join(""));
     normalized.join("")
   }
 
@@ -205,9 +205,12 @@ impl URDNA2015 {
       // 3.1.2) If the blank node's existing blank node identifier matches
       // the reference blank node identifier then use the blank node
       // identifier _:a, otherwise, use the blank node identifier _:z.
-      copy.subject = Self::modify_first_degree_component(id, &mut quad.subject).clone();
-      copy.object = Self::modify_first_degree_component(id, &mut quad.object).clone();
-      copy.graph = Self::modify_first_degree_component(id, &mut quad.graph).clone();
+      copy.subject =
+        Self::modify_first_degree_component(id, &mut quad.subject).clone();
+      copy.object =
+        Self::modify_first_degree_component(id, &mut quad.object).clone();
+      copy.graph =
+        Self::modify_first_degree_component(id, &mut quad.graph).clone();
       serialized_quads.push(nquads::serialize_quad(&copy));
     }
 
@@ -216,11 +219,11 @@ impl URDNA2015 {
 
     // 5) Return the hash that results from passing the sorted, joined nquads
     // through the hash algorithm.
-    let mut hasher = Sha256::new();
+    let mut md: MessageDigest<Sha256> = MessageDigest::new();
     for quad in &serialized_quads {
-      hasher.update(&quad);
+      md.update(&quad);
     }
-    let hex = hex::encode(hasher.finalize());
+    let hex = md.digest();
     info.hash = Some(hex.clone());
 
     hex
@@ -251,25 +254,25 @@ impl URDNA2015 {
 
     // 2) Initialize a string input to the value of position.
     // Note: We use a hash object instead.
-    let mut hasher = Sha256::new();
-    hasher.update(position);
+    let mut md: MessageDigest<Sha256> = MessageDigest::new();
+    md.update(position);
 
     // 3) If position is not g, append <, the value of the predicate in quad,
     // and > to input.
     if position != "g" {
-      hasher.update(self.get_related_predicate(quad));
+      md.update(&self.get_related_predicate(quad));
     }
 
     // 4) Append identifier to input.
-    hasher.update(id);
+    md.update(&id);
 
     // 5) Return the hash that results from passing input through the hash
     // algorithm.
-    hex::encode(hasher.finalize())
+    md.digest()
   }
 
   // 4.8) Hash N-Degree Quads
-  fn hash_N_degree_quads<'a>(
+  fn hash_n_degree_quads(
     &mut self,
     id: &str,
     issuer: &mut IdentifierIssuer,
@@ -277,20 +280,21 @@ impl URDNA2015 {
     // 1) Create a hash to related blank nodes map for storing hashes that
     // identify related blank nodes.
     // Note: 2) and 3) handled within `createHashToRelated`
-    let mut hasher = Sha256::new();
-    let mut hash_to_related = self.create_hash_to_related(id, &mut issuer.clone());
+    let mut md: MessageDigest<Sha256> = MessageDigest::new();
+    let mut hash_to_related =
+      self.create_hash_to_related(id, &mut issuer.clone());
 
     // 4) Create an empty string, data to hash.
-    // Note: We created a hash object `hasher` above instead.
+    // Note: We created a hash object `md` above instead.
 
     // 5) For each related hash to blank node list mapping in hash to related
     // blank nodes map, sorted lexicographically by related hash:
-    let mut hashes: Vec<String> = hash_to_related.keys().cloned().collect::<Vec<String>>();
+    let mut hashes = hashmap_keys_to_vec(&hash_to_related);
     hashes.sort();
 
     for hash in hashes {
       // 5.1) Append the related hash to the data to hash.
-      hasher.update(&hash);
+      md.update(&hash);
 
       // 5.2) Create a string chosen path.
       let mut chosen_path = String::from("");
@@ -351,7 +355,7 @@ impl URDNA2015 {
           // 5.4.5.1) Set result to the result of recursively executing
           // the Hash N-Degree Quads algorithm, passing related for
           // identifier and issuer copy for path identifier issuer.
-          let result = self.hash_N_degree_quads(related, &mut issuer_copy);
+          let result = self.hash_n_degree_quads(related, &mut issuer_copy);
           // 5.4.5.2) Use the Issue Identifier algorithm, passing issuer
           // copy and related and append the result to path.
           path.push(issuer_copy.get_id(related.to_string()));
@@ -390,7 +394,7 @@ impl URDNA2015 {
       }
 
       // 5.5) Append chosen path to data to hash.
-      hasher.update(chosen_path);
+      md.update(&chosen_path);
 
       // 5.6) Replace issuer, by reference, with chosen issuer.
       issuer.prefix = chosen_issuer.prefix.clone();
@@ -399,7 +403,7 @@ impl URDNA2015 {
       issuer.old_ids = chosen_issuer.old_ids.clone();
     }
 
-    (hex::encode(hasher.finalize()), issuer.clone())
+    (md.digest(), issuer.clone())
   }
 
   // helper for modifying component during Hash First Degree Quads
@@ -445,15 +449,40 @@ impl URDNA2015 {
       // or graph name and it is a blank node that is not identified by
       // identifier:
       // steps 3.1.1 and 3.1.2 occur in helpers:
-      self.add_related_blank_node_hash(&quad, &quad.subject, "s", id, issuer, &mut hash_to_related);
-      self.add_related_blank_node_hash(&quad, &quad.object, "o", id, issuer, &mut hash_to_related);
-      self.add_related_blank_node_hash(&quad, &quad.graph, "g", id, issuer, &mut hash_to_related);
+      self.add_related_blank_node_hash(
+        &quad,
+        &quad.subject,
+        "s",
+        id,
+        issuer,
+        &mut hash_to_related,
+      );
+      self.add_related_blank_node_hash(
+        &quad,
+        &quad.object,
+        "o",
+        id,
+        issuer,
+        &mut hash_to_related,
+      );
+      self.add_related_blank_node_hash(
+        &quad,
+        &quad.graph,
+        "g",
+        id,
+        issuer,
+        &mut hash_to_related,
+      );
     }
 
     hash_to_related
   }
 
-  fn hash_and_track_blank_node(&mut self, id: &str, hash_to_blank_nodes: &mut HashBlankNodeMap) {
+  fn hash_and_track_blank_node(
+    &mut self,
+    id: &str,
+    hash_to_blank_nodes: &mut HashBlankNodeMap,
+  ) {
     // 5.3.1) Create a hash, hash, according to the Hash First Degree
     // Quads algorithm.
     let hash = self.hash_first_degree_quads(id);
@@ -521,7 +550,10 @@ impl URDNA2015 {
     }
   }
 
-  fn use_canonical_id<'a, T>(component: &'a mut T, issuer: &mut IdentifierIssuer) -> T
+  fn use_canonical_id<'a, T>(
+    component: &'a mut T,
+    issuer: &mut IdentifierIssuer,
+  ) -> T
   where
     T: Term + Clone,
   {
@@ -535,4 +567,8 @@ impl URDNA2015 {
 
     c
   }
+}
+
+fn hashmap_keys_to_vec<T: Clone, U>(hashmap: &HashMap<T, U>) -> Vec<T> {
+  hashmap.keys().cloned().collect()
 }

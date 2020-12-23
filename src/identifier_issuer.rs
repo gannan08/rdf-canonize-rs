@@ -48,7 +48,3 @@ impl IdentifierIssuer {
     self.old_ids.clone()
   }
 }
-
-pub struct IdentifierIssuerPool {
-  issuers: Vec<IdentifierIssuer>,
-}

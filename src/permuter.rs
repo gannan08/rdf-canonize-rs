@@ -51,7 +51,7 @@ impl Permuter {
    *
    * @return the next permutation.
    */
-  pub fn next<'a>(&'a mut self) -> Vec<String> {
+  pub fn next(&mut self) -> Vec<String> {
     // copy current permutation to return it
     let current = &mut self.current;
     let dir = &mut self.dir;
@@ -102,7 +102,10 @@ impl Permuter {
       // reverse the direction of all elements larger than k
       for element in current.iter() {
         if element > &mut k_val.to_string() {
-          dir.insert(element.to_string(), !dir.get(&element.to_string()).unwrap());
+          dir.insert(
+            element.to_string(),
+            !dir.get(&element.to_string()).unwrap(),
+          );
         }
       }
     }

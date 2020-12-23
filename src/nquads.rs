@@ -23,8 +23,10 @@ const RDF_FIRST: &str = "http://www.w3.org/1999/02/22-rdf-syntax-ns#first";
 const RDF_REST: &str = "http://www.w3.org/1999/02/22-rdf-syntax-ns#rest";
 const RDF_NIL: &str = "http://www.w3.org/1999/02/22-rdf-syntax-ns#nil";
 const RDF_TYPE: &str = "http://www.w3.org/1999/02/22-rdf-syntax-ns#type";
-const RDF_LANGSTRING: &str = "http://www.w3.org/1999/02/22-rdf-syntax-ns#langString";
-const RDF_JSON_LITERAL: &str = "http://www.w3.org/1999/02/22-rdf-syntax-ns#JSON";
+const RDF_LANGSTRING: &str =
+  "http://www.w3.org/1999/02/22-rdf-syntax-ns#langString";
+const RDF_JSON_LITERAL: &str =
+  "http://www.w3.org/1999/02/22-rdf-syntax-ns#JSON";
 
 lazy_static! {
     // define partial regexes
@@ -317,13 +319,6 @@ pub fn parse_nquad(serialized_triple: &str) -> Quad {
   let group = QUAD_REGEX.captures(serialized_triple).unwrap();
   //  the capture group indexed at 1. This is because the entire match is
   //  stored in the capture group at index 0
-  for i in 1..group.len() {
-    match group.get(i) {
-      Some(val) => println!("{}: {}", i, val.as_str()),
-      None => println!("{}: None", i),
-    }
-  }
-
   let subject = parse_subject(&group);
   let predicate = parse_predicate(&group);
   let object = parse_object(&group);
