@@ -4,7 +4,9 @@ extern crate lazy_static;
 use std::env;
 use std::fs;
 
+mod identifier_issuer;
 mod nquads;
+mod permuter;
 mod urdna2015;
 
 fn main() {
@@ -18,5 +20,5 @@ fn main() {
 
     let rdf_dataset = nquads::parse_nquads(&dataset);
 
-    urdna2015::main(&rdf_dataset);
+    urdna2015::URDNA2015::new().main(&rdf_dataset);
 }

@@ -1,7 +1,7 @@
 extern crate regex;
 
-use std::collections::HashMap;
 use regex::Regex;
+use std::collections::HashMap;
 
 // define partial regexes
 const IRI: &str = "(?:<([^:]+:[^>]*)>)";
@@ -18,8 +18,13 @@ const XSD_INTEGER: &str = "http://www.w3.org/2001/XMLSchema#integer";
 const XSD_STRING: &str = "http://www.w3.org/2001/XMLSchema#string";
 
 // RDF constants
-const RDF: &str = "http://www.w3.org/1999/02/22-rdf-syntax-ns#";
+const RDF_LIST: &str = "http://www.w3.org/1999/02/22-rdf-syntax-ns#List";
+const RDF_FIRST: &str = "http://www.w3.org/1999/02/22-rdf-syntax-ns#first";
+const RDF_REST: &str = "http://www.w3.org/1999/02/22-rdf-syntax-ns#rest";
+const RDF_NIL: &str = "http://www.w3.org/1999/02/22-rdf-syntax-ns#nil";
+const RDF_TYPE: &str = "http://www.w3.org/1999/02/22-rdf-syntax-ns#type";
 const RDF_LANGSTRING: &str = "http://www.w3.org/1999/02/22-rdf-syntax-ns#langString";
+const RDF_JSON_LITERAL: &str = "http://www.w3.org/1999/02/22-rdf-syntax-ns#JSON";
 
 lazy_static! {
     // define partial regexes
@@ -44,44 +49,170 @@ lazy_static! {
         GRAPH.as_str(),
         WSO
     );
+
+
     static ref QUAD_REGEX: Regex = Regex::new(&QUAD).unwrap();
 }
 
+pub trait Term {
+  fn new() -> Self;
+  fn get_term_type(&self) -> TermType;
+  fn set_term_type(&mut self, term_type: &TermType);
+  fn get_value(&self) -> String;
+  fn set_value(&mut self, value: &String);
+}
+
 #[derive(Clone, Debug, PartialEq)]
-enum TermType {
+pub enum TermType {
   BlankNode,
-  IRI,
   NamedNode,
   Literal,
   DefaultGraph,
+  None,
 }
 
 #[derive(Clone, Debug, PartialEq)]
-struct Subject {
+pub struct Subject {
   term_type: TermType,
   value: String,
 }
 
+impl Term for Subject {
+  fn new() -> Subject {
+    Subject {
+      term_type: TermType::None,
+      value: String::from(""),
+    }
+  }
+
+  fn get_term_type(&self) -> TermType {
+    self.term_type.clone()
+  }
+
+  fn set_term_type(&mut self, term_type: &TermType) {
+    self.term_type = term_type.clone();
+  }
+
+  fn get_value(&self) -> String {
+    self.value.clone()
+  }
+
+  fn set_value(&mut self, value: &String) {
+    self.value = value.clone();
+  }
+}
+
 #[derive(Clone, Debug, PartialEq)]
-struct Predicate {
+pub struct Predicate {
   term_type: TermType,
   value: String,
 }
 
+impl Term for Predicate {
+  fn new() -> Predicate {
+    Predicate {
+      term_type: TermType::None,
+      value: String::from(""),
+    }
+  }
+
+  fn get_term_type(&self) -> TermType {
+    self.term_type.clone()
+  }
+
+  fn set_term_type(&mut self, term_type: &TermType) {
+    self.term_type = term_type.clone();
+  }
+  fn get_value(&self) -> String {
+    self.value.clone()
+  }
+
+  fn set_value(&mut self, value: &String) {
+    self.value = value.clone();
+  }
+}
+
 #[derive(Clone, Debug, PartialEq)]
-struct Object {
+pub struct Object {
   term_type: TermType,
   value: String,
   datatype: Option<String>,
   language: Option<String>,
 }
 
+impl Term for Object {
+  fn new() -> Object {
+    Object {
+      term_type: TermType::None,
+      value: String::from(""),
+      datatype: None,
+      language: None,
+    }
+  }
+
+  fn get_term_type(&self) -> TermType {
+    self.term_type.clone()
+  }
+
+  fn set_term_type(&mut self, term_type: &TermType) {
+    self.term_type = term_type.clone();
+  }
+  fn get_value(&self) -> String {
+    self.value.clone()
+  }
+
+  fn set_value(&mut self, value: &String) {
+    self.value = value.clone();
+  }
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct Graph {
+  term_type: TermType,
+  value: String,
+}
+
+impl Term for Graph {
+  fn new() -> Graph {
+    Graph {
+      term_type: TermType::None,
+      value: String::from(""),
+    }
+  }
+
+  fn get_term_type(&self) -> TermType {
+    self.term_type.clone()
+  }
+
+  fn set_term_type(&mut self, term_type: &TermType) {
+    self.term_type = term_type.clone();
+  }
+  fn get_value(&self) -> String {
+    self.value.clone()
+  }
+
+  fn set_value(&mut self, value: &String) {
+    self.value = value.clone();
+  }
+}
+
 #[derive(Clone, Debug, PartialEq)]
 pub struct Quad {
-  subject: Subject,
-  predicate: Predicate,
-  object: Object,
-  graph: String,
+  pub subject: Subject,
+  pub predicate: Predicate,
+  pub object: Object,
+  pub graph: Graph,
+}
+
+impl Quad {
+  pub fn new() -> Quad {
+    Quad {
+      subject: Subject::new(),
+      predicate: Predicate::new(),
+      object: Object::new(),
+      graph: Graph::new(),
+    }
+  }
 }
 
 pub type QuadSet = Vec<Quad>;
@@ -89,24 +220,28 @@ pub type QuadSet = Vec<Quad>;
 #[derive(Clone, Debug, PartialEq)]
 pub struct Dataset {
   pub quads: QuadSet,
-  graph_map: HashMap<String, Vec<usize>>
+  graph_map: HashMap<String, Vec<usize>>,
 }
 
 impl Dataset {
   fn new() -> Dataset {
-    Dataset { quads: Vec::new(), graph_map: HashMap::new() }
+    Dataset {
+      quads: Vec::new(),
+      graph_map: HashMap::new(),
+    }
   }
 
   fn add(&mut self, quad: Quad) -> bool {
     let graph = quad.graph.clone();
-    match self.graph_map.get_mut(&graph) {
+    let graph_name = graph.value;
+    match self.graph_map.get_mut(&graph_name) {
       Some(quad_ptrs) => {
         quad_ptrs.push(self.quads.len());
-      },
+      }
       None => {
         let mut quad_ptrs = Vec::new();
         quad_ptrs.push(self.quads.len());
-        self.graph_map.insert(graph, quad_ptrs);
+        self.graph_map.insert(graph_name, quad_ptrs);
       }
     }
 
@@ -116,6 +251,54 @@ impl Dataset {
   }
 }
 
+pub fn serialize_quad(quad: &Quad) -> String {
+  let s = &quad.subject;
+  let p = &quad.predicate;
+  let o = &quad.object;
+  let g = &quad.graph;
+
+  let mut nquad = Vec::<String>::new();
+
+  // subject can only be NamedNode or BlankNode
+  if s.term_type == TermType::NamedNode {
+    nquad.push(format!("<{}>", s.value));
+  } else {
+    nquad.push(s.value.to_string());
+  }
+
+  // predicate can only be NamedNode
+  nquad.push(format!(" <{}> ", p.value));
+
+  // object is NamedNode, BlankNode, or Literal
+  if o.term_type == TermType::NamedNode {
+    nquad.push(format!("<{}>", o.value));
+  } else if o.term_type == TermType::BlankNode {
+    nquad.push(o.value.to_string())
+  } else {
+    nquad.push(escape_string(&o.value));
+    if let Some(datatype) = &o.datatype {
+      if datatype == RDF_LANGSTRING {
+        match &o.language {
+          Some(language) => nquad.push(format!("@${}", language)),
+          None => {}
+        }
+      } else if datatype != XSD_STRING {
+        nquad.push(format!("^^<${}>", datatype))
+      }
+    }
+  }
+
+  // graph can only be NamedNode or BlankNode (or DefaultGraph, but that
+  // does not add to `nquad`)
+  if g.term_type == TermType::NamedNode {
+    nquad.push(format!("<{}>", g.value));
+  } else if g.term_type == TermType::BlankNode {
+    nquad.push(format!(" {}", g.value));
+  }
+
+  nquad.push(String::from(" .\n"));
+  nquad.join("")
+}
 pub fn parse_nquads(dataset: &str) -> Dataset {
   let lines = dataset.lines();
 
@@ -157,7 +340,7 @@ pub fn parse_nquad(serialized_triple: &str) -> Quad {
 fn parse_subject(group: &regex::Captures) -> Option<Subject> {
   let subject = match group.get(1) {
     Some(val) => Some(Subject {
-      term_type: TermType::IRI,
+      term_type: TermType::NamedNode,
       value: String::from(val.as_str()),
     }),
     None => Some(Subject {
@@ -172,7 +355,7 @@ fn parse_subject(group: &regex::Captures) -> Option<Subject> {
 fn parse_predicate(group: &regex::Captures) -> Option<Predicate> {
   let predicate = match group.get(3) {
     Some(val) => Some(Predicate {
-      term_type: TermType::IRI,
+      term_type: TermType::NamedNode,
       value: String::from(val.as_str()),
     }),
     None => None,
@@ -183,70 +366,99 @@ fn parse_predicate(group: &regex::Captures) -> Option<Predicate> {
 
 fn parse_object(group: &regex::Captures) -> Option<Object> {
   if let Some(value) = group.get(4) {
-    return Some(Object {
-      term_type: TermType::IRI,
+    let object = Object {
+      term_type: TermType::NamedNode,
       value: String::from(value.as_str()),
       datatype: None,
       language: None,
-    });
+    };
+    return Some(object);
   } else if let Some(value) = group.get(5) {
-    return Some(Object {
+    let object = Object {
       term_type: TermType::BlankNode,
       value: String::from(value.as_str()),
       datatype: None,
       language: None,
-    });
+    };
+    return Some(object);
   }
 
-  let unescaped = String::from(group.get(6).unwrap().as_str());
-  let escaped = escape_string(&unescaped);
+  let escaped = String::from(group.get(6).unwrap().as_str());
+  let unescaped = unescape_string(&escaped);
 
   if let Some(datatype) = group.get(7) {
-    return Some(Object {
+    let object = Object {
       term_type: TermType::Literal,
-      value: escaped,
+      value: unescaped,
       datatype: Some(String::from(datatype.as_str())),
       language: None,
-    });
+    };
+    return Some(object);
   } else if let Some(language) = group.get(8) {
-    return Some(Object {
+    let object = Object {
       term_type: TermType::Literal,
-      value: escaped,
+      value: unescaped,
       datatype: Some(String::from(RDF_LANGSTRING)),
       language: Some(String::from(language.as_str())),
-    });
+    };
+    return Some(object);
   }
 
-  Some(Object {
+  let object = Object {
     term_type: TermType::Literal,
-    value: escaped,
+    value: unescaped,
     datatype: Some(String::from(XSD_STRING)),
     language: None,
-  })
+  };
+  Some(object)
 }
 
-fn parse_graph_name(group: &regex::Captures) -> Option<String> {
-  let name = match group.get(9) {
-    Some(val) => Some(val.as_str()),
-    None => match group.get(10) {
-      Some(val) => Some(val.as_str()),
-      None => Some("@default"),
-    },
-  };
+fn parse_graph_name(group: &regex::Captures) -> Option<Graph> {
+  if let Some(value) = group.get(9) {
+    let graph_name = String::from(value.as_str());
+    let graph = Graph {
+      term_type: TermType::NamedNode,
+      value: graph_name,
+    };
+    return Some(graph);
+  } else if let Some(value) = group.get(10) {
+    let graph_name = String::from(value.as_str());
+    let graph = Graph {
+      term_type: TermType::BlankNode,
+      value: graph_name,
+    };
+    return Some(graph);
+  }
 
-  Some(String::from(name.unwrap()))
+  let graph = Graph {
+    term_type: TermType::DefaultGraph,
+    value: String::from("@default"),
+  };
+  Some(graph)
 }
 
 fn escape_string(unescaped: &str) -> String {
   let mut escaped;
 
-  escaped = unescaped.replace(r#"\\""#, r#"""#);
-  escaped = escaped.replace(r#"\\t"#, "\t");
-  escaped = escaped.replace(r#"\\n"#, "\n");
-  escaped = escaped.replace(r#"\\r"#, "\r");
-  escaped = escaped.replace(r#"\\\\""#, r#"\\"#);
+  escaped = unescaped.replace(r#"""#, r#"\\""#);
+  escaped = escaped.replace("\t", r#"\\t"#);
+  escaped = escaped.replace("\n", r#"\\n"#);
+  escaped = escaped.replace("\r", r#"\\r"#);
+  escaped = escaped.replace(r#"\\"#, r#"\\\\""#);
 
   escaped
+}
+
+fn unescape_string(escaped: &str) -> String {
+  let mut unescaped;
+
+  unescaped = escaped.replace(r#"\\""#, r#"""#);
+  unescaped = unescaped.replace(r#"\\t"#, "\t");
+  unescaped = unescaped.replace(r#"\\n"#, "\n");
+  unescaped = unescaped.replace(r#"\\r"#, "\r");
+  unescaped = unescaped.replace(r#"\\\\""#, r#"\\"#);
+
+  unescaped
 }
 
 #[cfg(test)]
@@ -256,11 +468,11 @@ mod tests {
   #[test]
   fn subject_equals() {
     let subject_a = Subject {
-      term_type: TermType::IRI,
+      term_type: TermType::NamedNode,
       value: String::from("foobar"),
     };
     let subject_b = Subject {
-      term_type: TermType::IRI,
+      term_type: TermType::NamedNode,
       value: String::from("foobar"),
     };
     assert_eq!(subject_a, subject_b);
@@ -269,7 +481,7 @@ mod tests {
   #[test]
   fn subject_not_equals() {
     let subject_a = Subject {
-      term_type: TermType::IRI,
+      term_type: TermType::NamedNode,
       value: String::from("ganesh"),
     };
     let subject_b = Subject {
@@ -282,11 +494,11 @@ mod tests {
   #[test]
   fn predicate_equals() {
     let predicate_a = Predicate {
-      term_type: TermType::IRI,
+      term_type: TermType::NamedNode,
       value: String::from("ganesh"),
     };
     let predicate_b = Predicate {
-      term_type: TermType::IRI,
+      term_type: TermType::NamedNode,
       value: String::from("ganesh"),
     };
     assert_eq!(predicate_a, predicate_b);
@@ -295,11 +507,11 @@ mod tests {
   #[test]
   fn predicate_not_equals() {
     let predicate_a = Predicate {
-      term_type: TermType::IRI,
+      term_type: TermType::NamedNode,
       value: String::from("ganesh"),
     };
     let predicate_b = Predicate {
-      term_type: TermType::IRI,
+      term_type: TermType::NamedNode,
       value: String::from("annan"),
     };
     assert_ne!(predicate_a, predicate_b);
@@ -308,13 +520,13 @@ mod tests {
   #[test]
   fn object_equals() {
     let object_a = Object {
-      term_type: TermType::IRI,
+      term_type: TermType::NamedNode,
       value: String::from("ganesh"),
       datatype: Some(String::from("http://example.com/t2")),
       language: None,
     };
     let object_b = Object {
-      term_type: TermType::IRI,
+      term_type: TermType::NamedNode,
       value: String::from("ganesh"),
       datatype: Some(String::from("http://example.com/t2")),
       language: None,
@@ -325,13 +537,13 @@ mod tests {
   #[test]
   fn object_not_equals() {
     let object_a = Object {
-      term_type: TermType::IRI,
+      term_type: TermType::NamedNode,
       value: String::from("ganesh"),
       datatype: Some(String::from("http://example.com/t2")),
       language: None,
     };
     let object_b = Object {
-      term_type: TermType::IRI,
+      term_type: TermType::NamedNode,
       value: String::from("ganesh"),
       datatype: Some(String::from("http://example.com/t2")),
       language: Some(String::from("fr")),
@@ -340,33 +552,63 @@ mod tests {
   }
 
   #[test]
+  fn graph_equals() {
+    let graph_a = Graph {
+      term_type: TermType::NamedNode,
+      value: String::from("@default"),
+    };
+    let graph_b = Graph {
+      term_type: TermType::NamedNode,
+      value: String::from("@default"),
+    };
+    assert_eq!(graph_a, graph_b);
+  }
+
+  #[test]
+  fn graph_not_equals() {
+    let graph_a = Graph {
+      term_type: TermType::NamedNode,
+      value: String::from("@default"),
+    };
+    let graph_b = Graph {
+      term_type: TermType::NamedNode,
+      value: String::from("_:b10"),
+    };
+    assert_ne!(graph_a, graph_b);
+  }
+
+  #[test]
   fn quad_equals() {
     let subject = Subject {
-      term_type: TermType::IRI,
+      term_type: TermType::NamedNode,
       value: String::from("foobar"),
     };
     let predicate = Predicate {
-      term_type: TermType::IRI,
+      term_type: TermType::NamedNode,
       value: String::from("ganesh"),
     };
     let object = Object {
-      term_type: TermType::IRI,
+      term_type: TermType::NamedNode,
       value: String::from("ganesh"),
       datatype: Some(String::from("http://example.com/t2")),
       language: None,
+    };
+    let graph = Graph {
+      term_type: TermType::NamedNode,
+      value: String::from("@default"),
     };
 
     let quad_a = Quad {
       subject: subject.clone(),
       predicate: predicate.clone(),
       object: object.clone(),
-      graph: String::from("@graph")
+      graph: graph.clone(),
     };
     let quad_b = Quad {
       subject,
       predicate,
       object,
-      graph: String::from("@graph")
+      graph,
     };
     assert_eq!(quad_a, quad_b);
   }
@@ -374,31 +616,39 @@ mod tests {
   #[test]
   fn quad_not_equals() {
     let subject = Subject {
-      term_type: TermType::IRI,
+      term_type: TermType::NamedNode,
       value: String::from("foobar"),
     };
     let predicate = Predicate {
-      term_type: TermType::IRI,
+      term_type: TermType::NamedNode,
       value: String::from("ganesh"),
     };
     let object = Object {
-      term_type: TermType::IRI,
+      term_type: TermType::NamedNode,
       value: String::from("ganesh"),
       datatype: Some(String::from("http://example.com/t2")),
       language: None,
+    };
+    let graph_a = Graph {
+      term_type: TermType::NamedNode,
+      value: String::from("@default"),
+    };
+    let graph_b = Graph {
+      term_type: TermType::NamedNode,
+      value: String::from("_:b10"),
     };
 
     let quad_a = Quad {
       subject: subject.clone(),
       predicate: predicate.clone(),
       object: object.clone(),
-      graph: String::from("@graph")
+      graph: graph_a,
     };
     let quad_b = Quad {
       subject,
       predicate,
       object,
-      graph: String::from("")
+      graph: graph_b,
     };
     assert_ne!(quad_a, quad_b);
   }
