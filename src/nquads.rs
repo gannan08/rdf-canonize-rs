@@ -5,8 +5,7 @@ use std::collections::HashMap;
 
 // define partial regexes
 const IRI: &str = "(?:<([^:]+:[^>]*)>)";
-const BNODE: &str = "(_:(?:[A-Za-z][A-Za-z0-9]*))";
-const PLAIN: &str = r#""([^"\\]*(?:\\.[^"\\]*)*)""#;
+const PLAIN: &str = "\"([^\"\\\\]*(?:\\\\.[^\"\\\\]*)*)\"";
 const LANGUAGE: &str = "(?:@([a-zA-Z]+(?:-[a-zA-Z0-9]+)*))";
 const WS: &str = "[ \\t]+";
 const WSO: &str = "[ \\t]*";
@@ -29,21 +28,60 @@ const RDF_JSON_LITERAL: &str =
   "http://www.w3.org/1999/02/22-rdf-syntax-ns#JSON";
 
 lazy_static! {
+    // https://www.w3.org/TR/turtle/#grammar-production-BLANK_NODE_LABEL
+    static ref PN_CHARS_BASE: String = format!(
+      "{}{}{}{}{}{}{}{}{}{}{}{}{}",
+      "A-Z",
+      "a-z",
+      "\u{00C0}-\u{00D6}",
+      "\u{00D8}-\u{00F6}",
+      "\u{00F8}-\u{02FF}",
+      "\u{0370}-\u{037D}",
+      "\u{037F}-\u{1FFF}",
+      "\u{200C}-\u{200D}",
+      "\u{2070}-\u{218F}",
+      "\u{2C00}-\u{2FEF}",
+      "\u{3001}-\u{D7FF}",
+      "\u{F900}-\u{FDCF}",
+      "\u{FDF0}-\u{FFFD}"
+      // TODO:
+      // "\u{1000}0-\u{EFFF}F"
+    );
+    static ref PN_CHARS_U: String = format!(
+      "{}{}",
+      PN_CHARS_BASE.as_str(),
+      "_"
+    );
+    static ref PN_CHARS: String = format!(
+      "{}{}{}{}{}{}",
+      PN_CHARS_U.as_str(),
+      "0-9",
+      "-",
+      "\u{00B7}",
+      "\u{0300}-\u{036F}",
+      "\u{203F}-\u{2040}"
+    );
     // define partial regexes
-    static ref DATATYPE: String = format!("{}{}{}", r#"(?:\^\^"#, IRI, ")");
+    static ref BLANK_NODE_LABEL: String = format!(
+      "{}{}{}{}{}{}{}{}{}{}",
+      "(_:",
+        "(?:[", PN_CHARS_U.as_str(), "0-9])",
+        "(?:(?:[" , PN_CHARS.as_str() , ".])*(?:[" , PN_CHARS.as_str() , "]))?",
+      ")"
+    );
+    static ref BNODE: String = BLANK_NODE_LABEL.clone();
+    static ref DATATYPE: String = format!("{}{}{}", "(?:\\^\\^", IRI, ")");
     static ref LITERAL: String = format!("(?:{}(?:{}|{})?)", PLAIN, DATATYPE.as_str(), LANGUAGE);
-    static ref EMPTY: String = format!("{}{}$", r#"^"#, WSO);
 
     // define quad part regexes
-    static ref SUBJECT: String = format!("(?:{}|{}){}", IRI, BNODE, WS);
+    static ref SUBJECT: String = format!("(?:{}|{}){}", IRI, BNODE.as_str(), WS);
     static ref PROPERTY: String = format!("{}{}", IRI, WS);
-    static ref OBJECT: String = format!("(?:{}|{}|{}){}", IRI, BNODE, LITERAL.as_str(), WSO);
-    static ref GRAPH: String = format!("(?:\\.|(?:(?:{}|{}){}\\.))", IRI, BNODE, WSO);
+    static ref OBJECT: String = format!("(?:{}|{}|{}){}", IRI, BNODE.as_str(), LITERAL.as_str(), WSO);
+    static ref GRAPH: String = format!("(?:\\.|(?:(?:{}|{}){}\\.))", IRI, BNODE.as_str(), WSO);
 
     // full quad regex
     static ref QUAD: String = format!(
-        "{}{}{}{}{}{}{}$",
-        r#"^"#,
+        "^{}{}{}{}{}{}$",
         WSO,
         SUBJECT.as_str(),
         PROPERTY.as_str(),
@@ -235,7 +273,7 @@ impl Quad {
 
 pub type QuadSet = Vec<Quad>;
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, Default, PartialEq)]
 pub struct Dataset {
   pub quads: QuadSet,
   graph_map: HashMap<String, Vec<usize>>,
@@ -293,7 +331,7 @@ pub fn serialize_quad(quad: &Quad) -> String {
   } else if o.term_type == TermType::BlankNode {
     nquad.push(o.value.to_string())
   } else {
-    nquad.push(escape_string(&o.value));
+    nquad.push(format!("\"{}\"", escape_string(&o.value)));
     if let Some(datatype) = &o.datatype {
       if datatype == RDF_LANGSTRING {
         match &o.language {
@@ -309,7 +347,7 @@ pub fn serialize_quad(quad: &Quad) -> String {
   // graph can only be NamedNode or BlankNode (or DefaultGraph, but that
   // does not add to `nquad`)
   if g.term_type == TermType::NamedNode {
-    nquad.push(format!("<{}>", g.value));
+    nquad.push(format!(" <{}>", g.value));
   } else if g.term_type == TermType::BlankNode {
     nquad.push(format!(" {}", g.value));
   }
@@ -449,25 +487,26 @@ fn parse_graph_name(group: &regex::Captures) -> Option<Graph> {
 }
 
 fn escape_string(unescaped: &str) -> String {
-  let mut escaped;
+  let mut escaped = unescaped.to_string();
 
-  escaped = unescaped.replace(r#"""#, r#"\\""#);
-  escaped = escaped.replace("\t", r#"\\t"#);
-  escaped = escaped.replace("\n", r#"\\n"#);
-  escaped = escaped.replace("\r", r#"\\r"#);
-  escaped = escaped.replace(r#"\\"#, r#"\\\\""#);
+  escaped = escaped.replace("\\", "\\\\");
+  escaped = escaped.replace("\"", "\\\"");
+  escaped = escaped.replace("\n", "\\n");
+  escaped = escaped.replace("\t", "\\t");
+  escaped = escaped.replace("\r", "\\r");
 
   escaped
 }
 
 fn unescape_string(escaped: &str) -> String {
-  let mut unescaped;
+  let mut unescaped = escaped.to_string();
 
-  unescaped = escaped.replace(r#"\\""#, r#"""#);
-  unescaped = unescaped.replace(r#"\\t"#, "\t");
-  unescaped = unescaped.replace(r#"\\n"#, "\n");
-  unescaped = unescaped.replace(r#"\\r"#, "\r");
-  unescaped = unescaped.replace(r#"\\\\""#, r#"\\"#);
+  unescaped = unescaped.replace("\\t", "\t");
+  unescaped = unescaped.replace("\\n", "\n");
+  unescaped = unescaped.replace("\\r", "\r");
+  unescaped = unescaped.replace("\\\"", "\"");
+  unescaped = unescaped.replace("\'", "'");
+  unescaped = unescaped.replace("\\\\", "\\");
 
   unescaped
 }
