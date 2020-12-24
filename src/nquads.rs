@@ -490,10 +490,9 @@ fn escape_string(unescaped: &str) -> String {
   let mut escaped = unescaped.to_string();
 
   escaped = escaped.replace("\\", "\\\\");
-  escaped = escaped.replace("\"", "\\\"");
-  escaped = escaped.replace("\n", "\\n");
-  escaped = escaped.replace("\t", "\\t");
   escaped = escaped.replace("\r", "\\r");
+  escaped = escaped.replace("\n", "\\n");
+  escaped = escaped.replace("\"", "\\\"");
 
   escaped
 }
@@ -502,8 +501,14 @@ fn unescape_string(escaped: &str) -> String {
   let mut unescaped = escaped.to_string();
 
   unescaped = unescaped.replace("\\t", "\t");
+  // Must use hex for escape sequence
+  // see: https://github.com/rust-lang/rfcs/issues/751
+  unescaped = unescaped.replace("\\b", "\x08");
   unescaped = unescaped.replace("\\n", "\n");
   unescaped = unescaped.replace("\\r", "\r");
+  // Must use hex for escape sequence
+  // see: https://github.com/rust-lang/rfcs/issues/751
+  unescaped = unescaped.replace("\\f", "\x0C");
   unescaped = unescaped.replace("\\\"", "\"");
   unescaped = unescaped.replace("\'", "'");
   unescaped = unescaped.replace("\\\\", "\\");
