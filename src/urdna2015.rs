@@ -83,12 +83,10 @@ impl URDNA2015 {
     // nodes map, lexicographically-sorted by hash:
     let mut hashes = hashmap_keys_to_vec(&hash_to_blank_nodes);
     hashes.sort();
-    println!("5.4) hashes: {:?}", hashes);
     // optimize away second sort, gather non-unique hashes in order as we go
     let mut non_unique: Vec<Vec<String>> = Vec::new();
 
     for hash in &hashes {
-      println!("5.4.1) hash: {}", hash);
       // 5.4.1) If the length of identifier list is greater than 1,
       // continue to the next mapping.
       let mut id_list = hash_to_blank_nodes.get(hash).unwrap().clone();
@@ -121,11 +119,9 @@ impl URDNA2015 {
       let mut hash_path_list = vec![];
       // 6.2) For each blank node identifier identifier in identifier list:
       for id in id_list {
-        println!("6.2) combo-id: {} {:#?}", id, self.canonical_issuer);
         // 6.2.1) If a canonical identifier has already been issued for
         // identifier, continue to the next identifier.
         if self.canonical_issuer.has_id(&id) {
-          println!("6.2.1) combo-id: {} - TRUE", id);
           continue;
         }
 
@@ -141,11 +137,6 @@ impl URDNA2015 {
         // 6.2.4) Run the Hash N-Degree Quads algorithm, passing
         // temporary issuer, and append the result to the hash path list.
         let result = self.hash_n_degree_quads(&id, &mut issuer);
-        println!(
-          "6.2.4) [{}] ============================================",
-          id
-        );
-        println!("6.2.4) [{}] result: {:#?}", id, result);
         hash_path_list.push(result);
       }
 
@@ -159,18 +150,12 @@ impl URDNA2015 {
         // in result, issue a canonical identifier, in the same order,
         // using the Issue Identifier algorithm, passing canonical
         // issuer and existing identifier.
-        println!(
-          "6.3.1) ORDER ({} hash path list length): {}",
-          length, result.0
-        );
         let old_ids = result.1.get_old_ids();
         for id in old_ids {
           self.canonical_issuer.get_id(id.to_string());
         }
       }
     }
-    println!("6) non_unique {:#?}", non_unique);
-    println!("6) final-issuer {:#?}", self.canonical_issuer);
 
     /* Note: At this point all blank nodes in the set of RDF quads have been
     assigned canonical identifiers, which have been stored in the canonical
@@ -310,9 +295,7 @@ impl URDNA2015 {
     let mut hashes = hashmap_keys_to_vec(&hash_to_related);
     // hashes.sort_by(|a, b| natural_lexical_cmp(&a, &b));
     hashes.sort();
-    println!("5) hashes: {:?}", hashes);
     for hash in hashes {
-      println!("5) hash: \"{}\"", hash);
       // 5.1) Append the related hash to the data to hash.
       md.update(&hash);
 
@@ -325,7 +308,6 @@ impl URDNA2015 {
       let mut permuter = Permuter::new(hash_to_related.get_mut(&hash).unwrap());
       while permuter.has_next() {
         let permutation = permuter.next();
-        println!("5.4) permutation {:?}", permutation);
         // 5.4.1) Create a copy of issuer, issuer copy.
         let mut issuer_copy = issuer.clone();
 
@@ -339,7 +321,6 @@ impl URDNA2015 {
         // 5.4.4) For each related in permutation:
         let mut next_permutation = false;
         for related in permutation.iter() {
-          println!("5.4.4) related {}", related);
           // 5.4.4.1) If a canonical identifier has been issued for
           // related, append it to path.
           if self.canonical_issuer.has_id(&related) {
@@ -373,22 +354,11 @@ impl URDNA2015 {
         }
 
         // 5.4.5) For each related in recursion list:
-        println!("5.4.5) recursion_list {:#?}", recursion_list);
         for related in recursion_list.iter() {
           // 5.4.5.1) Set result to the result of recursively executing
           // the Hash N-Degree Quads algorithm, passing related for
           // identifier and issuer copy for path identifier issuer.
-          println!(
-            "5.4.5.1) [{}] START +++++++++++++++++++++++++++++++++++++++++",
-            id
-          );
           let result = self.hash_n_degree_quads(related, &mut issuer_copy);
-          println!("5.4.5.1) [{}] result: {:#?}", id, result);
-          println!(
-            "5.4.5.1) [{}] END +++++++++++++++++++++++++++++++++++++++++",
-            id
-          );
-          // 5.4.5.2) Use the Issue Identifier algorithm, passing issuer
           // copy and related and append the result to path.
           path.push(issuer_copy.get_id(related.to_string()));
 
@@ -507,7 +477,6 @@ impl URDNA2015 {
       );
     }
 
-    println!("create_hash_to_related {:#?}", hash_to_related);
     hash_to_related
   }
 

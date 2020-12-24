@@ -56,9 +56,6 @@ impl Permuter {
     let current = &mut self.current;
     let dir = &mut self.dir;
     let rval = current.to_vec();
-    println!("[Permuter] current: {:?}", current);
-    println!("[Permuter] dir: {:?}", dir);
-    println!("[Permuter] rval: {:?}", rval);
     /* Calculate the next permutation using the Steinhaus-Johnson-Trotter
     permutation algorithm. */
 
@@ -97,31 +94,13 @@ impl Permuter {
       } else {
         pos + 1
       };
-      println!("[Permuter] current: {:?}", current);
-      println!("[Permuter] pos: {:?}", pos);
-      println!("[Permuter] swap: {:?}", swap);
-      println!("[Permuter] current[pos]: {:?}", current[swap].to_string());
-      println!("[Permuter] current[swap]: {:?}", k_val);
       let swap_val = &current[pos].clone();
-      println!("[Permuter] test: {:?}", swap_val);
       current[pos] = current[swap].to_string();
-      println!("[Permuter] test 2: {:?}", swap_val);
       current[swap] = swap_val.to_string();
 
       // reverse the direction of all elements larger than k
       for element in current.iter() {
-        println!("[Permuter] element: {:?}", element);
-        println!("[Permuter] k: {:?}", &mut k_val.to_string());
-        println!(
-          "[Permuter] element > k: {:?}",
-          element > &mut k_val.to_string()
-        );
         if element > &mut k_val.to_string() {
-          println!("[Permuter] reverse element: {:?}", element);
-          println!(
-            "[Permuter] reverse dir: {:?}",
-            !dir.get(&element.to_string()).unwrap()
-          );
           dir.insert(
             element.to_string(),
             !dir.get(&element.to_string()).unwrap(),
@@ -130,7 +109,6 @@ impl Permuter {
       }
     }
 
-    println!("[Permuter] return rval: {:?}", rval);
     rval
   }
 }
