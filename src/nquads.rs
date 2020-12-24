@@ -159,12 +159,28 @@ impl Term for Object {
   fn set_term_type(&mut self, term_type: &TermType) {
     self.term_type = term_type.clone();
   }
+
   fn get_value(&self) -> String {
     self.value.clone()
   }
 
   fn set_value(&mut self, value: &str) {
     self.value = value.to_string();
+  }
+}
+
+impl Object {
+  pub fn get_language(&self) -> Option<String> {
+    self.language.clone()
+  }
+  pub fn set_language(&mut self, language: &str) {
+    self.language = Some(language.to_string());
+  }
+  pub fn get_datatype(&self) -> Option<String> {
+    self.datatype.clone()
+  }
+  pub fn set_datatype(&mut self, datatype: &str) {
+    self.datatype = Some(datatype.to_string());
   }
 }
 
@@ -226,14 +242,14 @@ pub struct Dataset {
 }
 
 impl Dataset {
-  fn new() -> Dataset {
+  pub fn new() -> Dataset {
     Dataset {
       quads: Vec::new(),
       graph_map: HashMap::new(),
     }
   }
 
-  fn add(&mut self, quad: Quad) -> bool {
+  pub fn add(&mut self, quad: Quad) -> bool {
     let graph = quad.graph.clone();
     let graph_name = graph.value;
     match self.graph_map.get_mut(&graph_name) {
@@ -281,11 +297,11 @@ pub fn serialize_quad(quad: &Quad) -> String {
     if let Some(datatype) = &o.datatype {
       if datatype == RDF_LANGSTRING {
         match &o.language {
-          Some(language) => nquad.push(format!("@${}", language)),
+          Some(language) => nquad.push(format!("@{}", language)),
           None => {}
         }
       } else if datatype != XSD_STRING {
-        nquad.push(format!("^^<${}>", datatype))
+        nquad.push(format!("^^<{}>", datatype))
       }
     }
   }
