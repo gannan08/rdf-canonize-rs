@@ -302,7 +302,12 @@ impl URDNA2015 {
       let mut chosen_issuer: IdentifierIssuer = IdentifierIssuer::default();
 
       // 5.4) For each permutation of blank node list:
-      let permuter = Permuter::new(hash_to_related.get_mut(&hash).unwrap());
+      let l = hash_to_related.get_mut(&hash).unwrap();
+      let mut list = vec![];
+      for a in l {
+        list.push(&a[..]);
+      }
+      let permuter = Permuter::new(&mut list);
       for permutation in permuter {
         // 5.4.1) Create a copy of issuer, issuer copy.
         let mut issuer_copy = issuer.clone();

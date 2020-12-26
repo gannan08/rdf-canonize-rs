@@ -3,20 +3,20 @@ use std::collections::HashMap;
 type DirectionMap = HashMap<String, bool>;
 
 #[derive(Clone, Debug, PartialEq)]
-pub struct Permuter {
-  current: Vec<String>,
+pub struct Permuter<'a> {
+  current: Vec<&'a str>,
   done: bool,
   dir: DirectionMap,
 }
 
-impl Permuter {
+impl Permuter<'_> {
   /**
    * A Permuter iterates over all possible permutations of the given array
    * of elements.
    *
    * @param list the array of elements to iterate over.
    */
-  pub fn new(list: &mut Vec<String>) -> Permuter {
+  pub fn new<'a>(list: &mut Vec<&'a str>) -> Permuter<'a> {
     let current = &mut list[..];
     // original array
     current.sort();
@@ -37,7 +37,7 @@ impl Permuter {
   }
 }
 
-impl Iterator for Permuter {
+impl Iterator for Permuter<'_> {
   type Item = Vec<String>;
   fn next(&mut self) -> Option<Self::Item> {
     if self.done {
@@ -46,7 +46,8 @@ impl Iterator for Permuter {
     // copy current permutation to return it
     let current = &mut self.current;
     let dir = &mut self.dir;
-    let rval = current.to_vec();
+    let rval = current.iter().map(|x| x.to_string()).collect();
+
     /* Calculate the next permutation using the Steinhaus-Johnson-Trotter
     permutation algorithm. */
 
@@ -58,7 +59,7 @@ impl Iterator for Permuter {
     let mut pos = 0;
     let length = current.len();
     for (i, element) in current.iter().enumerate() {
-      let left = dir.get(element).unwrap();
+      let left = dir.get(&element[..]).unwrap();
       if let Some(tmp_k) = &k {
         k_is_none = false;
         k_val = tmp_k.to_string();
@@ -66,7 +67,7 @@ impl Iterator for Permuter {
         k_is_none = true;
         k_val = "".to_string();
       }
-      if (k_is_none || element > &k_val)
+      if (k_is_none || *element > &k_val)
         && ((*left && i > 0 && element > &current[i - 1])
           || (!left && i < (length - 1) && element > &current[i + 1]))
       {
@@ -86,12 +87,12 @@ impl Iterator for Permuter {
         pos + 1
       };
       let swap_val = &current[pos].clone();
-      current[pos] = current[swap].to_string();
-      current[swap] = swap_val.to_string();
+      current[pos] = &current[swap];
+      current[swap] = &swap_val;
 
       // reverse the direction of all elements larger than k
       for element in current.iter() {
-        if element > &mut k_val.to_string() {
+        if *element > &mut k_val.to_string() {
           dir.insert(
             element.to_string(),
             !dir.get(&element.to_string()).unwrap(),
