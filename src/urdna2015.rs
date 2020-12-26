@@ -2,7 +2,7 @@ use crate::identifier_issuer::IdentifierIssuer;
 use crate::message_digest::MessageDigest;
 use crate::nquads;
 use crate::nquads::{Dataset, Quad, QuadSet, Term, TermType};
-use crate::permuter::Permuter;
+use crate::permuter_fast::Permuter;
 
 use lexical_sort::natural_lexical_cmp;
 use sha2::Sha256;
@@ -112,7 +112,7 @@ impl URDNA2015 {
 
     // 6) For each hash to identifier list mapping in hash to blank nodes map,
     // lexicographically-sorted by hash:
-    // Note: sort optimized away, use `nonUnique`.
+    // Note: sort optimized away, use `non_unique`.
     for id_list in &mut non_unique {
       // 6.1) Create hash path list where each item will be a result of
       // running the Hash N-Degree Quads algorithm.
@@ -143,7 +143,6 @@ impl URDNA2015 {
       // 6.3) For each result in the hash path list,
       // lexicographically-sorted by the hash in result:
       hash_path_list.sort_by(|a, b| natural_lexical_cmp(&a.0, &b.0));
-      let length = hash_path_list.len();
       for result in hash_path_list {
         // 6.3.1) For each blank node identifier, existing identifier,
         // that was issued a temporary identifier by identifier issuer
@@ -168,7 +167,6 @@ impl URDNA2015 {
       // 7.1) Create a copy, quad copy, of quad and replace any existing
       // blank node identifiers using the canonical identifiers
       // previously issued by canonical issuer.
-      // Note: We optimize with shallow copies here.
       let mut q = quad.clone();
       q.subject =
         Self::use_canonical_id(&mut q.subject, &mut self.canonical_issuer);
@@ -282,7 +280,7 @@ impl URDNA2015 {
   ) -> (String, IdentifierIssuer) {
     // 1) Create a hash to related blank nodes map for storing hashes that
     // identify related blank nodes.
-    // Note: 2) and 3) handled within `createHashToRelated`
+    // Note: 2) and 3) handled within `create_hash_to_related`
     let mut md: MessageDigest<Sha256> = MessageDigest::new();
     let mut hash_to_related =
       self.create_hash_to_related(id, &mut issuer.clone());
@@ -293,7 +291,6 @@ impl URDNA2015 {
     // 5) For each related hash to blank node list mapping in hash to related
     // blank nodes map, sorted lexicographically by related hash:
     let mut hashes = hashmap_keys_to_vec(&hash_to_related);
-    // hashes.sort_by(|a, b| natural_lexical_cmp(&a, &b));
     hashes.sort();
     for hash in hashes {
       // 5.1) Append the related hash to the data to hash.
@@ -305,9 +302,8 @@ impl URDNA2015 {
       let mut chosen_issuer: IdentifierIssuer = IdentifierIssuer::default();
 
       // 5.4) For each permutation of blank node list:
-      let mut permuter = Permuter::new(hash_to_related.get_mut(&hash).unwrap());
-      while permuter.has_next() {
-        let permutation = permuter.next();
+      let permuter = Permuter::new(hash_to_related.get_mut(&hash).unwrap());
+      for permutation in permuter {
         // 5.4.1) Create a copy of issuer, issuer copy.
         let mut issuer_copy = issuer.clone();
 
@@ -440,10 +436,9 @@ impl URDNA2015 {
     // identify related blank nodes.
     let mut hash_to_related = HashToRelatedMap::new();
 
-    let mut s = self.clone();
     // 2) Get a reference, quads, to the list of quads in the blank node to
     // quads map for the key identifier.
-    let quads = &s.blank_node_info.get_mut(id).unwrap().quads;
+    let quads = self.blank_node_info.get_mut(id).unwrap().quads.clone();
 
     // 3) For each quad in quads:
     for quad in quads {

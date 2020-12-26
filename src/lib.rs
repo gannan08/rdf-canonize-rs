@@ -1,12 +1,13 @@
 #[macro_use]
 extern crate lazy_static;
 
-pub mod nquads;
-
 mod identifier_issuer;
 mod message_digest;
 mod permuter;
+mod permuter_fast;
 mod urdna2015;
+
+pub mod nquads;
 
 pub fn canonize(dataset: &nquads::Dataset, algorithm: &str) -> Option<String> {
   match algorithm {

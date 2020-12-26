@@ -11,96 +11,11 @@ const WS: &str = "[ \\t]+";
 const WSO: &str = "[ \\t]*";
 
 // XSD constants
-const XSD_BOOLEAN: &str = "http://www.w3.org/2001/XMLSchema#boolean";
-const XSD_DOUBLE: &str = "http://www.w3.org/2001/XMLSchema#double";
-const XSD_INTEGER: &str = "http://www.w3.org/2001/XMLSchema#integer";
 const XSD_STRING: &str = "http://www.w3.org/2001/XMLSchema#string";
 
 // RDF constants
-const RDF_LIST: &str = "http://www.w3.org/1999/02/22-rdf-syntax-ns#List";
-const RDF_FIRST: &str = "http://www.w3.org/1999/02/22-rdf-syntax-ns#first";
-const RDF_REST: &str = "http://www.w3.org/1999/02/22-rdf-syntax-ns#rest";
-const RDF_NIL: &str = "http://www.w3.org/1999/02/22-rdf-syntax-ns#nil";
-const RDF_TYPE: &str = "http://www.w3.org/1999/02/22-rdf-syntax-ns#type";
 const RDF_LANGSTRING: &str =
   "http://www.w3.org/1999/02/22-rdf-syntax-ns#langString";
-const RDF_JSON_LITERAL: &str =
-  "http://www.w3.org/1999/02/22-rdf-syntax-ns#JSON";
-
-lazy_static! {
-    // https://www.w3.org/TR/turtle/#grammar-production-BLANK_NODE_LABEL
-    static ref PN_CHARS_BASE: String = format!(
-      "{}{}{}{}{}{}{}{}{}{}{}{}{}",
-      "A-Z",
-      "a-z",
-      "\u{00C0}-\u{00D6}",
-      "\u{00D8}-\u{00F6}",
-      "\u{00F8}-\u{02FF}",
-      "\u{0370}-\u{037D}",
-      "\u{037F}-\u{1FFF}",
-      "\u{200C}-\u{200D}",
-      "\u{2070}-\u{218F}",
-      "\u{2C00}-\u{2FEF}",
-      "\u{3001}-\u{D7FF}",
-      "\u{F900}-\u{FDCF}",
-      "\u{FDF0}-\u{FFFD}"
-      // TODO:
-      // "\u{1000}0-\u{EFFF}F"
-    );
-    static ref PN_CHARS_U: String = format!(
-      "{}{}",
-      PN_CHARS_BASE.as_str(),
-      "_"
-    );
-    static ref PN_CHARS: String = format!(
-      "{}{}{}{}{}{}",
-      PN_CHARS_U.as_str(),
-      "0-9",
-      "-",
-      "\u{00B7}",
-      "\u{0300}-\u{036F}",
-      "\u{203F}-\u{2040}"
-    );
-    // define partial regexes
-    static ref BLANK_NODE_LABEL: String = format!(
-      "{}{}{}{}{}{}{}{}{}{}",
-      "(_:",
-        "(?:[", PN_CHARS_U.as_str(), "0-9])",
-        "(?:(?:[" , PN_CHARS.as_str() , ".])*(?:[" , PN_CHARS.as_str() , "]))?",
-      ")"
-    );
-    static ref BNODE: String = BLANK_NODE_LABEL.clone();
-    static ref DATATYPE: String = format!("{}{}{}", "(?:\\^\\^", IRI, ")");
-    static ref LITERAL: String = format!("(?:{}(?:{}|{})?)", PLAIN, DATATYPE.as_str(), LANGUAGE);
-
-    // define quad part regexes
-    static ref SUBJECT: String = format!("(?:{}|{}){}", IRI, BNODE.as_str(), WS);
-    static ref PROPERTY: String = format!("{}{}", IRI, WS);
-    static ref OBJECT: String = format!("(?:{}|{}|{}){}", IRI, BNODE.as_str(), LITERAL.as_str(), WSO);
-    static ref GRAPH: String = format!("(?:\\.|(?:(?:{}|{}){}\\.))", IRI, BNODE.as_str(), WSO);
-
-    // full quad regex
-    static ref QUAD: String = format!(
-        "^{}{}{}{}{}{}$",
-        WSO,
-        SUBJECT.as_str(),
-        PROPERTY.as_str(),
-        OBJECT.as_str(),
-        GRAPH.as_str(),
-        WSO
-    );
-
-
-    static ref QUAD_REGEX: Regex = Regex::new(&QUAD).unwrap();
-}
-
-pub trait Term {
-  fn new() -> Self;
-  fn get_term_type(&self) -> TermType;
-  fn set_term_type(&mut self, term_type: &TermType);
-  fn get_value(&self) -> String;
-  fn set_value(&mut self, value: &str);
-}
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum TermType {
@@ -109,6 +24,14 @@ pub enum TermType {
   Literal,
   DefaultGraph,
   None,
+}
+
+pub trait Term {
+  fn new() -> Self;
+  fn get_term_type(&self) -> TermType;
+  fn set_term_type(&mut self, term_type: &TermType);
+  fn get_value(&self) -> String;
+  fn set_value(&mut self, value: &str);
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -163,6 +86,7 @@ impl Term for Predicate {
   fn set_term_type(&mut self, term_type: &TermType) {
     self.term_type = term_type.clone();
   }
+
   fn get_value(&self) -> String {
     self.value.clone()
   }
@@ -211,12 +135,15 @@ impl Object {
   pub fn get_language(&self) -> Option<String> {
     self.language.clone()
   }
+
   pub fn set_language(&mut self, language: &str) {
     self.language = Some(language.to_string());
   }
+
   pub fn get_datatype(&self) -> Option<String> {
     self.datatype.clone()
   }
+
   pub fn set_datatype(&mut self, datatype: &str) {
     self.datatype = Some(datatype.to_string());
   }
@@ -243,6 +170,7 @@ impl Term for Graph {
   fn set_term_type(&mut self, term_type: &TermType) {
     self.term_type = term_type.clone();
   }
+
   fn get_value(&self) -> String {
     self.value.clone()
   }
@@ -367,6 +295,73 @@ pub fn parse_nquads(dataset: &str) -> Dataset {
   }
 
   rdf_dataset
+}
+
+lazy_static! {
+  // https://www.w3.org/TR/turtle/#grammar-production-BLANK_NODE_LABEL
+  static ref PN_CHARS_BASE: String = format!(
+    "{}{}{}{}{}{}{}{}{}{}{}{}{}",
+    "A-Z",
+    "a-z",
+    "\u{00C0}-\u{00D6}",
+    "\u{00D8}-\u{00F6}",
+    "\u{00F8}-\u{02FF}",
+    "\u{0370}-\u{037D}",
+    "\u{037F}-\u{1FFF}",
+    "\u{200C}-\u{200D}",
+    "\u{2070}-\u{218F}",
+    "\u{2C00}-\u{2FEF}",
+    "\u{3001}-\u{D7FF}",
+    "\u{F900}-\u{FDCF}",
+    "\u{FDF0}-\u{FFFD}"
+    // TODO:
+    // "\u{1000}0-\u{EFFF}F"
+  );
+  static ref PN_CHARS_U: String = format!(
+    "{}{}",
+    PN_CHARS_BASE.as_str(),
+    "_"
+  );
+  static ref PN_CHARS: String = format!(
+    "{}{}{}{}{}{}",
+    PN_CHARS_U.as_str(),
+    "0-9",
+    "-",
+    "\u{00B7}",
+    "\u{0300}-\u{036F}",
+    "\u{203F}-\u{2040}"
+  );
+  // define partial regexes
+  static ref BLANK_NODE_LABEL: String = format!(
+    "{}{}{}{}{}{}{}{}{}{}",
+    "(_:",
+      "(?:[", PN_CHARS_U.as_str(), "0-9])",
+      "(?:(?:[" , PN_CHARS.as_str() , ".])*(?:[" , PN_CHARS.as_str() , "]))?",
+    ")"
+  );
+  static ref BNODE: String = BLANK_NODE_LABEL.clone();
+  static ref DATATYPE: String = format!("{}{}{}", "(?:\\^\\^", IRI, ")");
+  static ref LITERAL: String = format!("(?:{}(?:{}|{})?)", PLAIN, DATATYPE.as_str(), LANGUAGE);
+
+  // define quad part regexes
+  static ref SUBJECT: String = format!("(?:{}|{}){}", IRI, BNODE.as_str(), WS);
+  static ref PROPERTY: String = format!("{}{}", IRI, WS);
+  static ref OBJECT: String = format!("(?:{}|{}|{}){}", IRI, BNODE.as_str(), LITERAL.as_str(), WSO);
+  static ref GRAPH: String = format!("(?:\\.|(?:(?:{}|{}){}\\.))", IRI, BNODE.as_str(), WSO);
+
+  // full quad regex
+  static ref QUAD: String = format!(
+      "^{}{}{}{}{}{}$",
+      WSO,
+      SUBJECT.as_str(),
+      PROPERTY.as_str(),
+      OBJECT.as_str(),
+      GRAPH.as_str(),
+      WSO
+  );
+
+
+  static ref QUAD_REGEX: Regex = Regex::new(&QUAD).unwrap();
 }
 
 pub fn parse_nquad(serialized_triple: &str) -> Quad {

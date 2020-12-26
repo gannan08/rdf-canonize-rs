@@ -40,11 +40,11 @@ impl IdentifierIssuer {
     identifier
   }
 
-  pub fn has_id(&mut self, old: &str) -> bool {
+  pub fn has_id(&self, old: &str) -> bool {
     self.existing.contains_key(old)
   }
 
-  pub fn get_old_ids(&self) -> Vec<String> {
-    self.old_ids.clone()
+  pub fn get_old_ids(&self) -> &[String] {
+    &self.old_ids[..]
   }
 }
