@@ -44,6 +44,7 @@ impl URDNA2015 {
 
   // 4.4) Normalization Algorithm
   pub fn main(&mut self, dataset: &Dataset) -> String {
+    let mut hm_cache: HashMap<String, String> = HashMap::new();
     self.quads = dataset.quads.clone();
     let quads = &dataset.quads;
     // 1) Create the normalization state.
@@ -75,8 +76,9 @@ impl URDNA2015 {
     // identifiers:
     let mut hash_to_blank_nodes = HashBlankNodeMap::new();
     let non_normalized = hashmap_keys_to_vec(&self.blank_node_info);
+    // println!("NNNNNNNNNN {}", non_normalized.len());
     for id in &non_normalized {
-      self.hash_and_track_blank_node(id, &mut hash_to_blank_nodes)
+      self.hash_and_track_blank_node(id, &mut hash_to_blank_nodes, &mut hm_cache)
     }
 
     // 5.4) For each hash to identifier list mapping in hash to blank
@@ -188,7 +190,7 @@ impl URDNA2015 {
   }
 
   // 4.6) Hash First Degree Quads
-  fn hash_first_degree_quads(&mut self, id: &str) -> String {
+  fn hash_first_degree_quads(&mut self, id: &str, hm_cache: &mut HashMap<String, String>) -> String {
     // 1) Initialize nquads to an empty list. It will be used to store quads in
     // N-Quads format.
     let mut serialized_quads: Vec<String> = Vec::new();
@@ -222,14 +224,35 @@ impl URDNA2015 {
 
     // 5) Return the hash that results from passing the sorted, joined nquads
     // through the hash algorithm.
-    let mut md: MessageDigest<Sha256> = MessageDigest::new();
-    for quad in &serialized_quads {
-      md.update(&quad);
-    }
-    let hex = md.digest();
-    info.hash = Some(hex.clone());
+    let concat_quads = serialized_quads.join("");
 
-    hex
+    match hm_cache.get(&concat_quads) {
+      Some(hash) => {
+        // println!("CACHE HIT");
+        let h = hash.to_string();
+        info.hash = Some(h.clone());
+        h
+      },
+      None => {
+        let mut md: MessageDigest<Sha256> = MessageDigest::new();
+        md.update(&concat_quads);
+        let hex = md.digest();
+        info.hash = Some(hex.clone());
+        hm_cache.insert(concat_quads, hex.clone());
+        hex
+      }
+    }
+
+    // let mut md: MessageDigest<Sha256> = MessageDigest::new();
+    // for quad in &serialized_quads {
+    //   println!("JJJJ");
+    //   md.update(&quad);
+
+    // }
+    // let hex = md.digest();
+    // info.hash = Some(hex.clone());
+
+    // hex
   }
 
   // 4.7) Hash Related Blank Node
@@ -484,10 +507,12 @@ impl URDNA2015 {
     &mut self,
     id: &str,
     hash_to_blank_nodes: &mut HashBlankNodeMap,
+    hm_cache: &mut HashMap<String, String>,
   ) {
     // 5.3.1) Create a hash, hash, according to the Hash First Degree
     // Quads algorithm.
-    let hash = self.hash_first_degree_quads(id);
+    let hash = self.hash_first_degree_quads(id, hm_cache);
+    // println!("{} {}", id, hash);
 
     // 5.3.2) Add hash and identifier to hash to blank nodes map,
     // creating a new entry if necessary.
