@@ -4,12 +4,16 @@ use crate::nquads;
 use crate::nquads::{Dataset, Quad, QuadSet, Term, TermType};
 use crate::permuter::Permuter;
 
+use std::time::{Instant};
+
 use lexical_sort::natural_lexical_cmp;
 use sha2::Sha256;
 use std::collections::HashMap;
 
 const NAME: &str = "URDNA2015";
 const HASH_ALGORITHM: &str = "sha256";
+
+static mut ACCUM_HASH_TO_RELATED: u128 = 0;
 
 type Hash = String;
 type BlankNodeInfoMap = HashMap<String, BlankNodeInfo>;
@@ -90,8 +94,9 @@ impl URDNA2015 {
     let mut hashes = hashmap_keys_to_vec(&hash_to_blank_nodes);
     hashes.sort_unstable();
     // optimize away second sort, gather non-unique hashes in order as we go
-    let mut non_unique: Vec<Vec<String>> = Vec::new();
+    let mut non_unique: Vec<Vec<String>> = Vec::with_capacity(hashes.len());
 
+    let first_timer = Instant::now();
     for hash in &hashes {
       // 5.4.1) If the length of identifier list is greater than 1,
       // continue to the next mapping.
@@ -115,7 +120,9 @@ impl URDNA2015 {
       // 5.4.4) Remove hash from the hash to blank nodes map.
       // 5.4.5) Set simple to true.
     }
+    // println!("FIRST_TIMER {}", first_timer.elapsed().as_micros());
 
+    let second_timer = Instant::now();
     // 6) For each hash to identifier list mapping in hash to blank nodes map,
     // lexicographically-sorted by hash:
     // Note: sort optimized away, use `non_unique`.
@@ -124,6 +131,7 @@ impl URDNA2015 {
       // running the Hash N-Degree Quads algorithm.
       let mut hash_path_list = vec![];
       // 6.2) For each blank node identifier identifier in identifier list:
+      let fifth_timer = Instant::now();
       for id in id_list {
         // 6.2.1) If a canonical identifier has already been issued for
         // identifier, continue to the next identifier.
@@ -142,9 +150,12 @@ impl URDNA2015 {
 
         // 6.2.4) Run the Hash N-Degree Quads algorithm, passing
         // temporary issuer, and append the result to the hash path list.
+        let sixth_timer = Instant::now();
         let result = self.hash_n_degree_quads(&id, &mut issuer);
+        // println!("SIXTH_TIMER {}", sixth_timer.elapsed().as_micros());
         hash_path_list.push(result);
       }
+      // println!("FIFTH_TIMER {}", fifth_timer.elapsed().as_micros());
 
       // 6.3) For each result in the hash path list,
       // lexicographically-sorted by the hash in result:
@@ -162,13 +173,15 @@ impl URDNA2015 {
       }
     }
 
+    // println!("SECOND_TIMER {}", second_timer.elapsed().as_micros());
+    let third_timer = Instant::now();
     /* Note: At this point all blank nodes in the set of RDF quads have been
     assigned canonical identifiers, which have been stored in the canonical
     issuer. Here each quad is updated by assigning each of its blank nodes
     its new identifier. */
 
     // 7) For each quad, quad, in input dataset:
-    let mut normalized = vec![];
+    let mut normalized = Vec::with_capacity(self.quads.len());
     for quad in self.quads.iter() {
       // 7.1) Create a copy, quad copy, of quad and replace any existing
       // blank node identifiers using the canonical identifiers
@@ -181,22 +194,29 @@ impl URDNA2015 {
       normalized.push(nquads::serialize_quad(&q));
     }
 
+    // println!("THIRD_TIMER {}", third_timer.elapsed().as_micros());
+    let fourth_timer = Instant::now();
     // sort normalized output
     normalized.sort_unstable();
-
+    // println!("FOURTH_TIMER {}", fourth_timer.elapsed().as_micros());
+    unsafe {
+      // println!("ACCUM_HASH_TO_RELATED {}", ACCUM_HASH_TO_RELATED);
+    }
     // 8) Return the normalized dataset.
     normalized.join("")
   }
 
   // 4.6) Hash First Degree Quads
   fn hash_first_degree_quads(&mut self, id: &str) -> String {
-    // 1) Initialize nquads to an empty list. It will be used to store quads in
-    // N-Quads format.
-    let mut serialized_quads: Vec<String> = Vec::new();
-
-    // 2) Get the list of quads `quads` associated with the reference blank node
+    // 1) Get the list of quads `quads` associated with the reference blank node
     // identifier in the blank node to quads map.
     let mut info = self.blank_node_info.get_mut(id).unwrap();
+
+    // FIXME: does the ordering here which has been changed correspond to
+    // some document/spec?
+    // 2) Initialize nquads to an empty list. It will be used to store quads in
+    // N-Quads format.
+    let mut serialized_quads: Vec<String> = Vec::with_capacity(info.quads.len());
 
     for quad in &mut info.quads {
       // 3.1) Serialize the quad in N-Quads format with the following special
@@ -278,15 +298,26 @@ impl URDNA2015 {
     // identify related blank nodes.
     // Note: 2) and 3) handled within `create_hash_to_related`
     let mut md: MessageDigest<Sha256> = MessageDigest::new();
+    let hn1_timer = Instant::now();
     let mut hash_to_related = self.create_hash_to_related(id, &mut issuer.clone());
+    let j = hn1_timer.elapsed().as_micros();
+    unsafe {
+      ACCUM_HASH_TO_RELATED += j;
+
+    }
+    // println!("HN1_TIMER HASH_TO_RELATED {}", j);
 
     // 4) Create an empty string, data to hash.
     // Note: We created a hash object `md` above instead.
 
     // 5) For each related hash to blank node list mapping in hash to related
     // blank nodes map, sorted lexicographically by related hash:
+    let hn2_timer = Instant::now();
     let mut hashes = hashmap_keys_to_vec(&hash_to_related);
+    // println!("HN2_TIMER {}", hn2_timer.elapsed().as_micros());
+    // hashes.sort_by(|a, b| natural_lexical_cmp(&a, &b));
     hashes.sort_unstable();
+    let hn3_timer = Instant::now();
     for hash in hashes {
       // 5.1) Append the related hash to the data to hash.
       md.update(&hash);
@@ -353,9 +384,10 @@ impl URDNA2015 {
         if next_permutation {
           continue;
         }
-
+        let hn7_timer = Instant::now();
         // 5.4.5) For each related in recursion list:
         for related in recursion_list.iter() {
+          // println!("_______________related {}", related.to_string());
           // 5.4.5.1) Set result to the result of recursively executing
           // the Hash N-Degree Quads algorithm, passing related for
           // identifier and issuer copy for path identifier issuer.
@@ -381,7 +413,8 @@ impl URDNA2015 {
             break;
           }
         }
-
+        // println!("recursionlistlen {}", recursion_list.len());
+        // println!("HN7_TIMER {}", hn7_timer.elapsed().as_micros());
         if next_permutation {
           continue;
         }
@@ -405,6 +438,7 @@ impl URDNA2015 {
       issuer.existing = chosen_issuer.existing.clone();
       issuer.old_ids = chosen_issuer.old_ids.clone();
     }
+    // println!("HN3_TIMER {}", hn3_timer.elapsed().as_micros());
 
     HashNDegreeResult {
       hash: MessageDigest::digest(md),
@@ -448,6 +482,7 @@ impl URDNA2015 {
     // quads map for the key identifier.
     let quads = self.blank_node_info.get_mut(id).unwrap().quads.clone();
 
+    // println!("QUADS_LENGTH {}", quads.len());
     // 3) For each quad in quads:
     for quad in quads {
       // 3.1) For each component in quad, if component is the subject, object,
