@@ -20,7 +20,7 @@ impl Permuter<'_> {
    *
    * @param list the array of elements to iterate over.
    */
-  pub fn new(list: &mut Vec<String>) -> Permuter {
+  pub fn new<'a>(list: &mut Vec<&'a str>) -> Permuter<'a> {
     let list_clone = &mut list[..];
     // original array
     list_clone.sort();
