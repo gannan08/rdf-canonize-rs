@@ -2,7 +2,7 @@ use crate::identifier_issuer::IdentifierIssuer;
 use crate::message_digest::MessageDigest;
 use crate::nquads;
 use crate::nquads::{Dataset, Quad, QuadSet, Term, TermType};
-use crate::permuter_fast::Permuter;
+use crate::permuter::Permuter;
 
 use lexical_sort::natural_lexical_cmp;
 use sha2::Sha256;
@@ -82,7 +82,7 @@ impl URDNA2015 {
     // 5.4) For each hash to identifier list mapping in hash to blank
     // nodes map, lexicographically-sorted by hash:
     let mut hashes = hashmap_keys_to_vec(&hash_to_blank_nodes);
-    hashes.sort();
+    hashes.sort_unstable();
     // optimize away second sort, gather non-unique hashes in order as we go
     let mut non_unique: Vec<Vec<String>> = Vec::new();
 
@@ -179,7 +179,7 @@ impl URDNA2015 {
     }
 
     // sort normalized output
-    normalized.sort();
+    normalized.sort_unstable();
 
     // 8) Return the normalized dataset.
     normalized.join("")
@@ -291,7 +291,7 @@ impl URDNA2015 {
     // 5) For each related hash to blank node list mapping in hash to related
     // blank nodes map, sorted lexicographically by related hash:
     let mut hashes = hashmap_keys_to_vec(&hash_to_related);
-    hashes.sort();
+    hashes.sort_unstable();
     for hash in hashes {
       // 5.1) Append the related hash to the data to hash.
       md.update(&hash);
@@ -307,7 +307,12 @@ impl URDNA2015 {
       for a in l {
         list.push(&a[..]);
       }
-      let permuter = Permuter::new(&mut list);
+      let mut elements = Permuter::elements(&mut list);
+      let mut element_refs = Vec::with_capacity(elements.len());
+      for element in elements.iter_mut() {
+        element_refs.push(element);
+      }
+      let permuter = Permuter::new(&mut element_refs);
       for permutation in permuter {
         // 5.4.1) Create a copy of issuer, issuer copy.
         let mut issuer_copy = issuer.clone();

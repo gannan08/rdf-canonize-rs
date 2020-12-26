@@ -1,12 +1,12 @@
 use std::collections::HashMap;
 
-type DirectionMap = HashMap<String, bool>;
+type DirectionMap<'a> = HashMap<&'a str, bool>;
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Debug, PartialEq)]
 pub struct Permuter<'a> {
-  current: Vec<&'a str>,
+  current: &'a mut Vec<&'a str>,
   done: bool,
-  dir: DirectionMap,
+  dir: DirectionMap<'a>,
 }
 
 impl Permuter<'_> {
@@ -16,24 +16,25 @@ impl Permuter<'_> {
    *
    * @param list the array of elements to iterate over.
    */
-  pub fn new<'a>(list: &mut Vec<&'a str>) -> Permuter<'a> {
-    let current = &mut list[..];
-    // original array
-    current.sort();
+  pub fn new<'a>(current: &'a mut Vec<&'a str>) -> Permuter<'a> {
     // indicates whether there are more permutations
     let done = false;
     // directional info for permutation algorithm
     let mut dir = DirectionMap::new();
     for v in current.iter() {
-      dir.insert(v.to_string(), true);
+      dir.insert(v, true);
     }
-    let mut vec = vec![];
-    vec.extend_from_slice(current);
-    Permuter {
-      current: vec,
-      done,
-      dir,
-    }
+    Permuter { current, done, dir }
+  }
+
+  pub fn elements<'a>(list: &mut [&'a str]) -> Vec<&'a str> {
+    // original array
+    list.sort_unstable();
+
+    let mut elements = Vec::with_capacity(list.len());
+    elements.extend_from_slice(list);
+
+    elements
   }
 }
 
@@ -44,7 +45,7 @@ impl Iterator for Permuter<'_> {
       return None;
     }
     // copy current permutation to return it
-    let current = &mut self.current;
+    let current = &mut self.current[..];
     let dir = &mut self.dir;
     let rval = current.iter().map(|x| x.to_string()).collect();
 
@@ -53,25 +54,18 @@ impl Iterator for Permuter<'_> {
 
     // get largest mobile element k
     // (mobile: element is greater than the one it is looking at)
-    let mut k: Option<String> = None;
-    let mut k_val = String::from("");
+    let mut k: Option<&str> = None;
     let mut k_is_none = true;
     let mut pos = 0;
     let length = current.len();
     for (i, element) in current.iter().enumerate() {
-      let left = dir.get(&element[..]).unwrap();
-      if let Some(tmp_k) = &k {
-        k_is_none = false;
-        k_val = tmp_k.to_string();
-      } else {
-        k_is_none = true;
-        k_val = "".to_string();
-      }
-      if (k_is_none || *element > &k_val)
+      let left = dir.get(element).unwrap();
+      k_is_none = k.is_none();
+      if (k_is_none || *element > k.unwrap())
         && ((*left && i > 0 && element > &current[i - 1])
           || (!left && i < (length - 1) && element > &current[i + 1]))
       {
-        k = Some(element.to_string());
+        k = Some(element);
         pos = i;
       }
     }
@@ -80,23 +74,20 @@ impl Iterator for Permuter<'_> {
     if k_is_none {
       self.done = true;
     } else {
+      let k_val = &k.unwrap();
       // swap k and the element it is looking at
-      let swap = if *dir.get(&k_val).unwrap() {
+      let swap = if *dir.get(k_val).unwrap() {
         pos - 1
       } else {
         pos + 1
       };
-      let swap_val = &current[pos].clone();
-      current[pos] = &current[swap];
-      current[swap] = &swap_val;
+
+      current.swap(pos, swap);
 
       // reverse the direction of all elements larger than k
       for element in current.iter() {
-        if *element > &mut k_val.to_string() {
-          dir.insert(
-            element.to_string(),
-            !dir.get(&element.to_string()).unwrap(),
-          );
+        if element > k_val {
+          dir.insert(element, !dir.get(element).unwrap());
         }
       }
     }
