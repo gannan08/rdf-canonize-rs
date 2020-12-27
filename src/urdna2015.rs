@@ -224,7 +224,7 @@ impl URDNA2015 {
     for quad in &serialized_quads {
       md.update(&quad);
     }
-    let hex = md.digest();
+    let hex = MessageDigest::digest(md);
     info.hash = Some(hex.clone());
 
     hex
@@ -269,7 +269,7 @@ impl URDNA2015 {
 
     // 5) Return the hash that results from passing input through the hash
     // algorithm.
-    md.digest()
+    MessageDigest::digest(md)
   }
 
   // 4.8) Hash N-Degree Quads
@@ -407,7 +407,7 @@ impl URDNA2015 {
     }
 
     HashNDegreeResult {
-      hash: md.digest(),
+      hash: MessageDigest::digest(md),
       issuer: issuer.clone(),
     }
   }
