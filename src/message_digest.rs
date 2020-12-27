@@ -14,7 +14,7 @@ impl<T: Clone + Digest> MessageDigest<T> {
     self.hasher.update(msg);
   }
 
-  pub fn digest(&mut self) -> String {
-    hex::encode(self.hasher.clone().finalize())
+  pub fn digest(md: MessageDigest<T>) -> String {
+    hex::encode(md.hasher.finalize())
   }
 }
