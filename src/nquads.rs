@@ -189,6 +189,12 @@ pub struct Quad {
 
 impl Quad {
   pub fn new() -> Quad {
+    Self::default()
+  }
+}
+
+impl Default for Quad {
+  fn default() -> Quad {
     Quad {
       subject: Subject::new(),
       predicate: Predicate::new(),
@@ -365,49 +371,45 @@ lazy_static! {
 
 pub fn parse_nquad(serialized_triple: &str) -> Quad {
   let group = QUAD_REGEX.captures(serialized_triple).unwrap();
-  //  the capture group indexed at 1. This is because the entire match is
-  //  stored in the capture group at index 0
+
   let subject = parse_subject(&group);
   let predicate = parse_predicate(&group);
   let object = parse_object(&group);
-  let graph_name = parse_graph_name(&group);
+  let graph = parse_graph(&group);
 
   Quad {
-    subject: subject.unwrap(),
-    predicate: predicate.unwrap(),
-    object: object.unwrap(),
-    graph: graph_name.unwrap(),
+    subject,
+    predicate,
+    object,
+    graph,
   }
 }
 
-fn parse_subject(group: &regex::Captures) -> Option<Subject> {
+fn parse_subject(group: &regex::Captures) -> Subject {
   let subject = match group.get(1) {
-    Some(val) => Some(Subject {
+    Some(value) => Subject {
       term_type: TermType::NamedNode,
-      value: String::from(val.as_str()),
-    }),
-    None => Some(Subject {
+      value: String::from(value.as_str()),
+    },
+    None => Subject {
       term_type: TermType::BlankNode,
       value: String::from(group.get(2).unwrap().as_str()),
-    }),
+    },
   };
 
-  Some(subject.unwrap())
+  subject
 }
 
-fn parse_predicate(group: &regex::Captures) -> Option<Predicate> {
-  let predicate = match group.get(3) {
-    Some(val) => Some(Predicate {
-      term_type: TermType::NamedNode,
-      value: String::from(val.as_str()),
-    }),
-    None => None,
-  };
+fn parse_predicate(group: &regex::Captures) -> Predicate {
+  let value = group.get(3).unwrap();
 
-  Some(predicate.unwrap())
+  Predicate {
+    term_type: TermType::NamedNode,
+    value: String::from(value.as_str()),
+  }
 }
 
-fn parse_object(group: &regex::Captures) -> Option<Object> {
+fn parse_object(group: &regex::Captures) -> Object {
   if let Some(value) = group.get(4) {
     let object = Object {
       term_type: TermType::NamedNode,
@@ -415,7 +417,7 @@ fn parse_object(group: &regex::Captures) -> Option<Object> {
       datatype: None,
       language: None,
     };
-    return Some(object);
+    return object;
   } else if let Some(value) = group.get(5) {
     let object = Object {
       term_type: TermType::BlankNode,
@@ -423,7 +425,7 @@ fn parse_object(group: &regex::Captures) -> Option<Object> {
       datatype: None,
       language: None,
     };
-    return Some(object);
+    return object;
   }
 
   let escaped = String::from(group.get(6).unwrap().as_str());
@@ -436,7 +438,7 @@ fn parse_object(group: &regex::Captures) -> Option<Object> {
       datatype: Some(String::from(datatype.as_str())),
       language: None,
     };
-    return Some(object);
+    return object;
   } else if let Some(language) = group.get(8) {
     let object = Object {
       term_type: TermType::Literal,
@@ -444,40 +446,38 @@ fn parse_object(group: &regex::Captures) -> Option<Object> {
       datatype: Some(String::from(RDF_LANGSTRING)),
       language: Some(String::from(language.as_str())),
     };
-    return Some(object);
+    return object;
   }
 
-  let object = Object {
+  Object {
     term_type: TermType::Literal,
     value: unescaped,
     datatype: Some(String::from(XSD_STRING)),
     language: None,
-  };
-  Some(object)
+  }
 }
 
-fn parse_graph_name(group: &regex::Captures) -> Option<Graph> {
+fn parse_graph(group: &regex::Captures) -> Graph {
   if let Some(value) = group.get(9) {
     let graph_name = String::from(value.as_str());
     let graph = Graph {
       term_type: TermType::NamedNode,
       value: graph_name,
     };
-    return Some(graph);
+    return graph;
   } else if let Some(value) = group.get(10) {
     let graph_name = String::from(value.as_str());
     let graph = Graph {
       term_type: TermType::BlankNode,
       value: graph_name,
     };
-    return Some(graph);
+    return graph;
   }
 
-  let graph = Graph {
+  Graph {
     term_type: TermType::DefaultGraph,
     value: String::from("@default"),
-  };
-  Some(graph)
+  }
 }
 
 fn escape_string(unescaped: &str) -> String {

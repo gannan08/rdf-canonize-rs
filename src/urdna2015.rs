@@ -16,6 +16,12 @@ type BlankNodeInfoMap = HashMap<String, BlankNodeInfo>;
 type HashBlankNodeMap = HashMap<String, Vec<String>>;
 type HashToRelatedMap = HashMap<String, Vec<String>>;
 
+#[derive(Clone, Debug)]
+struct HashNDegreeResult {
+  hash: String,
+  issuer: IdentifierIssuer,
+}
+
 #[derive(Clone, Debug, PartialEq)]
 struct BlankNodeInfo {
   pub quads: QuadSet,
@@ -101,7 +107,7 @@ impl URDNA2015 {
       // list, identifier, to issue a canonical replacement identifier
       // for identifier.
       let id = &id_list[0];
-      self.canonical_issuer.get_id(id.to_string());
+      self.canonical_issuer.get_id(id);
 
       // Note: These steps are skipped, optimized away since the loop
       // only needs to be run once.
@@ -132,7 +138,7 @@ impl URDNA2015 {
         // 6.2.3) Use the Issue Identifier algorithm, passing temporary
         // issuer and identifier, to issue a new temporary blank node
         // identifier for identifier.
-        issuer.get_id(id.to_string());
+        issuer.get_id(id);
 
         // 6.2.4) Run the Hash N-Degree Quads algorithm, passing
         // temporary issuer, and append the result to the hash path list.
@@ -142,16 +148,16 @@ impl URDNA2015 {
 
       // 6.3) For each result in the hash path list,
       // lexicographically-sorted by the hash in result:
-      hash_path_list.sort_by(|a, b| natural_lexical_cmp(&a.0, &b.0));
+      hash_path_list.sort_by(|a, b| natural_lexical_cmp(&a.hash, &b.hash));
       for result in hash_path_list {
         // 6.3.1) For each blank node identifier, existing identifier,
         // that was issued a temporary identifier by identifier issuer
         // in result, issue a canonical identifier, in the same order,
         // using the Issue Identifier algorithm, passing canonical
         // issuer and existing identifier.
-        let old_ids = result.1.get_old_ids();
+        let old_ids = result.issuer.get_old_ids();
         for id in old_ids {
-          self.canonical_issuer.get_id(id.to_string());
+          self.canonical_issuer.get_id(id);
         }
       }
     }
@@ -203,9 +209,9 @@ impl URDNA2015 {
       // 3.1.2) If the blank node's existing blank node identifier matches
       // the reference blank node identifier then use the blank node
       // identifier _:a, otherwise, use the blank node identifier _:z.
-      copy.subject = Self::modify_first_degree_component(id, &mut quad.subject).clone();
-      copy.object = Self::modify_first_degree_component(id, &mut quad.object).clone();
-      copy.graph = Self::modify_first_degree_component(id, &mut quad.graph).clone();
+      copy.subject = Self::modify_first_degree_component(id, &mut quad.subject);
+      copy.object = Self::modify_first_degree_component(id, &mut quad.object);
+      copy.graph = Self::modify_first_degree_component(id, &mut quad.graph);
       serialized_quads.push(nquads::serialize_quad(&copy));
     }
 
@@ -238,9 +244,9 @@ impl URDNA2015 {
     // Quads algorithm, passing related.
     let id;
     if self.canonical_issuer.has_id(related) {
-      id = self.canonical_issuer.get_id(related.to_string());
+      id = self.canonical_issuer.get_id(related);
     } else if issuer.has_id(related) {
-      id = issuer.get_id(related.to_string());
+      id = issuer.get_id(related);
     } else if let Some(info) = self.blank_node_info.get(related) {
       id = info.hash.as_ref().unwrap().to_string();
     } else {
@@ -267,11 +273,7 @@ impl URDNA2015 {
   }
 
   // 4.8) Hash N-Degree Quads
-  fn hash_n_degree_quads(
-    &mut self,
-    id: &str,
-    issuer: &mut IdentifierIssuer,
-  ) -> (String, IdentifierIssuer) {
+  fn hash_n_degree_quads(&mut self, id: &str, issuer: &mut IdentifierIssuer) -> HashNDegreeResult {
     // 1) Create a hash to related blank nodes map for storing hashes that
     // identify related blank nodes.
     // Note: 2) and 3) handled within `create_hash_to_related`
@@ -315,7 +317,7 @@ impl URDNA2015 {
 
         // 5.4.3) Create a recursion list, to store blank node identifiers
         // that must be recursively processed by this algorithm.
-        let mut recursion_list: Vec<String> = vec![];
+        let mut recursion_list: Vec<&str> = vec![];
 
         // 5.4.4) For each related in permutation:
         let mut next_permutation = false;
@@ -323,17 +325,17 @@ impl URDNA2015 {
           // 5.4.4.1) If a canonical identifier has been issued for
           // related, append it to path.
           if self.canonical_issuer.has_id(&related) {
-            path.push(self.canonical_issuer.get_id(related.to_string()))
+            path.push(self.canonical_issuer.get_id(related))
           } else {
             // 5.4.4.2) Otherwise:
             // 5.4.4.2.1) If issuer copy has not issued an identifier for
             // related, append related to recursion list.
             if !issuer_copy.has_id(&related) {
-              recursion_list.push(related.to_string())
+              recursion_list.push(related)
             }
             // 5.4.4.2.2) Use the Issue Identifier algorithm, passing
             // issuer copy and related and append the result to path.
-            path.push(issuer_copy.get_id(related.to_string()))
+            path.push(issuer_copy.get_id(related))
           }
 
           // 5.4.4.3) If chosen path is not empty and the length of path
@@ -359,14 +361,14 @@ impl URDNA2015 {
           // identifier and issuer copy for path identifier issuer.
           let result = self.hash_n_degree_quads(related, &mut issuer_copy);
           // copy and related and append the result to path.
-          path.push(issuer_copy.get_id(related.to_string()));
+          path.push(issuer_copy.get_id(related));
 
           // 5.4.5.3) Append <, the hash in result, and > to path.
-          path.push(format!("<{}>", result.0));
+          path.push(format!("<{}>", result.hash));
 
           // 5.4.5.4) Set issuer copy to the identifier issuer in
           // result.
-          issuer_copy = result.1.clone();
+          issuer_copy = result.issuer.clone();
 
           // 5.4.5.5) If chosen path is not empty and the length of path
           // is greater than or equal to the length of chosen path and
@@ -404,11 +406,14 @@ impl URDNA2015 {
       issuer.old_ids = chosen_issuer.old_ids.clone();
     }
 
-    (md.digest(), issuer.clone())
+    HashNDegreeResult {
+      hash: md.digest(),
+      issuer: issuer.clone(),
+    }
   }
 
   // helper for modifying component during Hash First Degree Quads
-  fn modify_first_degree_component<'a, T>(id: &str, component: &'a mut T) -> T
+  fn modify_first_degree_component<T>(id: &str, component: &mut T) -> T
   where
     T: Term + Clone,
   {
@@ -525,7 +530,7 @@ impl URDNA2015 {
     }
   }
 
-  fn use_canonical_id<'a, T>(component: &'a mut T, issuer: &mut IdentifierIssuer) -> T
+  fn use_canonical_id<T>(component: &mut T, issuer: &mut IdentifierIssuer) -> T
   where
     T: Term + Clone,
   {
@@ -533,7 +538,7 @@ impl URDNA2015 {
     if c.get_term_type() == TermType::BlankNode
       && !component.get_value().starts_with(&issuer.prefix)
     {
-      c.set_value(&issuer.get_id(c.get_value()));
+      c.set_value(&issuer.get_id(&c.get_value()));
       return c;
     }
 
