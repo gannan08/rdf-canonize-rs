@@ -195,7 +195,7 @@ impl<'b> URDNA2015<'b> {
     normalized.sort_unstable();
     // println!("FOURTH_TIMER {}", fourth_timer.elapsed().as_micros());
     unsafe {
-      // println!("ACCUM_HASH_TO_RELATED {}", ACCUM_HASH_TO_RELATED);
+      println!("ACCUM_HASH_TO_RELATED {}", ACCUM_HASH_TO_RELATED);
     }
     // 8) Return the normalized dataset.
     normalized.join("")
