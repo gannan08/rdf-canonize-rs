@@ -27,9 +27,9 @@ pub enum TermType {
 
 pub trait Term {
   fn new() -> Self;
-  fn get_term_type(&self) -> TermType;
+  fn get_term_type(&self) -> &TermType;
   fn set_term_type(&mut self, term_type: &TermType);
-  fn get_value(&self) -> String;
+  fn get_value(&self) -> &str;
   fn set_value(&mut self, value: &str);
 }
 
@@ -47,16 +47,16 @@ impl Term for Subject {
     }
   }
 
-  fn get_term_type(&self) -> TermType {
-    self.term_type.clone()
+  fn get_term_type(&self) -> &TermType {
+    &self.term_type
   }
 
   fn set_term_type(&mut self, term_type: &TermType) {
     self.term_type = term_type.clone();
   }
 
-  fn get_value(&self) -> String {
-    self.value.clone()
+  fn get_value(&self) -> &str {
+    &self.value
   }
 
   fn set_value(&mut self, value: &str) {
@@ -78,16 +78,16 @@ impl Term for Predicate {
     }
   }
 
-  fn get_term_type(&self) -> TermType {
-    self.term_type.clone()
+  fn get_term_type(&self) -> &TermType {
+    &self.term_type
   }
 
   fn set_term_type(&mut self, term_type: &TermType) {
     self.term_type = term_type.clone();
   }
 
-  fn get_value(&self) -> String {
-    self.value.clone()
+  fn get_value(&self) -> &str {
+    &self.value
   }
 
   fn set_value(&mut self, value: &str) {
@@ -113,16 +113,16 @@ impl Term for Object {
     }
   }
 
-  fn get_term_type(&self) -> TermType {
-    self.term_type.clone()
+  fn get_term_type(&self) -> &TermType {
+    &self.term_type
   }
 
   fn set_term_type(&mut self, term_type: &TermType) {
     self.term_type = term_type.clone();
   }
 
-  fn get_value(&self) -> String {
-    self.value.clone()
+  fn get_value(&self) -> &str {
+    &self.value
   }
 
   fn set_value(&mut self, value: &str) {
@@ -162,16 +162,16 @@ impl Term for Graph {
     }
   }
 
-  fn get_term_type(&self) -> TermType {
-    self.term_type.clone()
+  fn get_term_type(&self) -> &TermType {
+    &self.term_type
   }
 
   fn set_term_type(&mut self, term_type: &TermType) {
     self.term_type = term_type.clone();
   }
 
-  fn get_value(&self) -> String {
-    self.value.clone()
+  fn get_value(&self) -> &str {
+    &self.value
   }
 
   fn set_value(&mut self, value: &str) {

@@ -418,7 +418,7 @@ impl URDNA2015 {
     T: Term + Clone,
   {
     let mut c = component.clone();
-    if c.get_term_type() != TermType::BlankNode {
+    if *c.get_term_type() != TermType::BlankNode {
       return c;
     }
 
@@ -482,19 +482,19 @@ impl URDNA2015 {
   where
     T: Term,
   {
-    if component.get_term_type() != TermType::BlankNode {
+    if *component.get_term_type() != TermType::BlankNode {
       return;
     }
 
     let id = component.get_value();
-    if let Some(info) = self.blank_node_info.get_mut(&id) {
+    if let Some(info) = self.blank_node_info.get_mut(id) {
       info.quads.push(quad.clone());
     } else {
       let mut quads = QuadSet::new();
       quads.push(quad.clone());
       self
         .blank_node_info
-        .insert(id, BlankNodeInfo { quads, hash: None });
+        .insert(id.to_string(), BlankNodeInfo { quads, hash: None });
     }
   }
 
@@ -510,7 +510,7 @@ impl URDNA2015 {
     T: Term,
   {
     let related = component.get_value();
-    if !(component.get_term_type() == TermType::BlankNode && related != id) {
+    if !(*component.get_term_type() == TermType::BlankNode && related != id) {
       return;
     }
     // 3.1.1) Set hash to the result of the Hash Related Blank Node
@@ -524,9 +524,9 @@ impl URDNA2015 {
     // component to hash to related blank nodes map, adding an entry as
     // necessary.
     if let Some(entries) = hash_to_related.get_mut(&hash) {
-      entries.push(related);
+      entries.push(related.to_string());
     } else {
-      hash_to_related.insert(hash, vec![related]);
+      hash_to_related.insert(hash, vec![related.to_string()]);
     }
   }
 
@@ -535,7 +535,7 @@ impl URDNA2015 {
     T: Term + Clone,
   {
     let mut c = component.clone();
-    if c.get_term_type() == TermType::BlankNode
+    if *c.get_term_type() == TermType::BlankNode
       && !component.get_value().starts_with(&issuer.prefix)
     {
       c.set_value(&issuer.get_id(&c.get_value()));
