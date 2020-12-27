@@ -1,7 +1,7 @@
 use crate::identifier_issuer::IdentifierIssuer;
 use crate::message_digest::MessageDigest;
 use crate::nquads;
-use crate::nquads::{Dataset, Quad, QuadSet, Term, TermType};
+use crate::nquads::{Dataset, Quad, QuadSet, Term, Terms, TermType, Subject, Object, Graph};
 use crate::permuter::Permuter;
 
 use lexical_sort::natural_lexical_cmp;
@@ -454,9 +454,11 @@ impl URDNA2015 {
       // or graph name and it is a blank node that is not identified by
       // identifier:
       // steps 3.1.1 and 3.1.2 occur in helpers:
-      self.add_related_blank_node_hash(&quad, &quad.subject, "s", id, issuer, &mut hash_to_related);
-      self.add_related_blank_node_hash(&quad, &quad.object, "o", id, issuer, &mut hash_to_related);
-      self.add_related_blank_node_hash(&quad, &quad.graph, "g", id, issuer, &mut hash_to_related);
+      for t in ["s", "o", "g"].iter() {
+        self.add_related_blank_node_hash(&quad, t, id, issuer, &mut hash_to_related);
+        self.add_related_blank_node_hash(&quad, t, id, issuer, &mut hash_to_related);
+        self.add_related_blank_node_hash(&quad, t, id, issuer, &mut hash_to_related);
+      }
     }
 
     hash_to_related
@@ -498,17 +500,20 @@ impl URDNA2015 {
     }
   }
 
-  fn add_related_blank_node_hash<'a, T>(
+  fn add_related_blank_node_hash<'a>(
     &mut self,
     quad: &Quad,
-    component: &'a T,
     position: &str,
     id: &str,
     issuer: &mut IdentifierIssuer,
     hash_to_related: &'a mut HashBlankNodeMap,
-  ) where
-    T: Term,
-  {
+  ) {
+    let component = match position {
+      "s" => Terms::Subject(&quad.subject),
+      "o" => Terms::Object(&quad.object),
+      "g" => Terms::Graph(&quad.graph),
+      _ => {panic!("boo")}
+    };
     let related = component.get_value();
     if !(component.get_term_type() == TermType::BlankNode && related != id) {
       return;

@@ -702,3 +702,26 @@ mod tests {
     assert_ne!(quad_a, quad_b);
   }
 }
+
+pub enum Terms <'a> {
+  Subject(&'a Subject),
+  Object(&'a Object),
+  Graph(&'a Graph),
+}
+
+impl Terms <'_> {
+  pub fn get_value(&self) -> String {
+    match *self {
+      Terms::Subject(ref d) => d.get_value(),
+      Terms::Object(ref d) => d.get_value(),
+      Terms::Graph(ref d) => d.get_value(),
+    }
+  }
+  pub fn get_term_type(&self) -> TermType {
+    match *self {
+      Terms::Subject(ref d) => d.get_term_type(),
+      Terms::Object(ref d) => d.get_term_type(),
+      Terms::Graph(ref d) => d.get_term_type(),
+    }
+  }
+}
