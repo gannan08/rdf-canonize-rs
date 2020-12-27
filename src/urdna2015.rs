@@ -14,6 +14,7 @@ const NAME: &str = "URDNA2015";
 const HASH_ALGORITHM: &str = "sha256";
 
 static mut ACCUM_HASH_TO_RELATED: u128 = 0;
+static mut ACCUM_HASH_RELATED: u128 = 0;
 
 type Hash = String;
 type BlankNodeInfoMap = HashMap<String, BlankNodeInfo>;
@@ -201,6 +202,7 @@ impl URDNA2015 {
     // println!("FOURTH_TIMER {}", fourth_timer.elapsed().as_micros());
     unsafe {
       println!("ACCUM_HASH_TO_RELATED {}", ACCUM_HASH_TO_RELATED);
+      println!("ACCUM_HASH_RELATED {}", ACCUM_HASH_RELATED);
     }
     // 8) Return the normalized dataset.
     normalized.join("")
@@ -553,7 +555,15 @@ impl URDNA2015 {
     // related, quad, path identifier issuer as issuer, and position as
     // either s, o, or g based on whether component is a subject, object,
     // graph name, respectively.
+
+    let _timer = Instant::now();
+
     let hash = self.hash_related_blank_node(&related, quad, issuer, position);
+
+    let j = _timer.elapsed().as_micros();
+    unsafe {
+      ACCUM_HASH_RELATED += j;
+    }
 
     // 3.1.2) Add a mapping of hash to the blank node identifier for
     // component to hash to related blank nodes map, adding an entry as
