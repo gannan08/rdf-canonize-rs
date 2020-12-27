@@ -8,5 +8,5 @@ cargo bench test044_canonize
 cargo bench test044_canonize -- --nocapture
 
 # run test in benches
-cargo test --benches tt044_canonize -- --nocapture
+cargo test --release --benches test044_canonize -- --nocapture
 ```
