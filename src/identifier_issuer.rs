@@ -43,6 +43,10 @@ impl IdentifierIssuer {
     identifier
   }
 
+  pub fn get_if(&self, old: &str) -> Option<&String> {
+    self.existing.get(old)
+  }
+
   pub fn has_id(&self, old: &str) -> bool {
     self.existing.contains_key(old)
   }

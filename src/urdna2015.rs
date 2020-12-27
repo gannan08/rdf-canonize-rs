@@ -242,16 +242,20 @@ impl URDNA2015 {
     // identifier for related if issued, second the identifier issued by issuer
     // if issued, and last, if necessary, the result of the Hash First Degree
     // Quads algorithm, passing related.
-    let id;
-    if self.canonical_issuer.has_id(related) {
-      id = self.canonical_issuer.get_id(related);
-    } else if issuer.has_id(related) {
-      id = issuer.get_id(related);
-    } else if let Some(info) = self.blank_node_info.get(related) {
-      id = info.hash.as_ref().unwrap().to_string();
-    } else {
-      id = "".to_string();
-    }
+    let id = match self.canonical_issuer.get_if(related) {
+      Some(i) => i,
+      None => {
+        match issuer.get_if(related) {
+          Some(i) => i,
+          None => {
+            match self.blank_node_info.get(related) {
+              Some(i) => i.hash.as_ref().unwrap(),
+              None => ""
+            }
+          }
+        }
+      }
+    };
 
     // 2) Initialize a string input to the value of position.
     // Note: We use a hash object instead.
