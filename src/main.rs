@@ -10,15 +10,13 @@ fn main() {
 
     println!("Filename {}", filename);
 
-    let dataset_str = fs::read_to_string(filename)
-        .expect("Something went wrong reading the file");
+    let dataset_str = fs::read_to_string(filename).expect("Something went wrong reading the file");
 
     println!("INPUT:");
     let rdf_dataset = rdf_canonize::nquads::parse_nquads(&dataset_str);
 
     println!();
-    let serialized_nquads =
-        rdf_canonize::canonize(&rdf_dataset, "URDNA2015").unwrap();
+    let serialized_nquads = rdf_canonize::canonize(&rdf_dataset, "URDNA2015").unwrap();
     println!("OUTPUT:");
     println!("{}", serialized_nquads);
 }

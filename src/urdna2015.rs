@@ -168,12 +168,9 @@ impl URDNA2015 {
       // blank node identifiers using the canonical identifiers
       // previously issued by canonical issuer.
       let mut q = quad.clone();
-      q.subject =
-        Self::use_canonical_id(&mut q.subject, &mut self.canonical_issuer);
-      q.object =
-        Self::use_canonical_id(&mut q.object, &mut self.canonical_issuer);
-      q.graph =
-        Self::use_canonical_id(&mut q.graph, &mut self.canonical_issuer);
+      q.subject = Self::use_canonical_id(&mut q.subject, &mut self.canonical_issuer);
+      q.object = Self::use_canonical_id(&mut q.object, &mut self.canonical_issuer);
+      q.graph = Self::use_canonical_id(&mut q.graph, &mut self.canonical_issuer);
       // 7.2) Add quad copy to the normalized dataset.
       normalized.push(nquads::serialize_quad(&q));
     }
@@ -206,12 +203,9 @@ impl URDNA2015 {
       // 3.1.2) If the blank node's existing blank node identifier matches
       // the reference blank node identifier then use the blank node
       // identifier _:a, otherwise, use the blank node identifier _:z.
-      copy.subject =
-        Self::modify_first_degree_component(id, &mut quad.subject).clone();
-      copy.object =
-        Self::modify_first_degree_component(id, &mut quad.object).clone();
-      copy.graph =
-        Self::modify_first_degree_component(id, &mut quad.graph).clone();
+      copy.subject = Self::modify_first_degree_component(id, &mut quad.subject).clone();
+      copy.object = Self::modify_first_degree_component(id, &mut quad.object).clone();
+      copy.graph = Self::modify_first_degree_component(id, &mut quad.graph).clone();
       serialized_quads.push(nquads::serialize_quad(&copy));
     }
 
@@ -282,8 +276,7 @@ impl URDNA2015 {
     // identify related blank nodes.
     // Note: 2) and 3) handled within `create_hash_to_related`
     let mut md: MessageDigest<Sha256> = MessageDigest::new();
-    let mut hash_to_related =
-      self.create_hash_to_related(id, &mut issuer.clone());
+    let mut hash_to_related = self.create_hash_to_related(id, &mut issuer.clone());
 
     // 4) Create an empty string, data to hash.
     // Note: We created a hash object `md` above instead.
@@ -456,40 +449,15 @@ impl URDNA2015 {
       // or graph name and it is a blank node that is not identified by
       // identifier:
       // steps 3.1.1 and 3.1.2 occur in helpers:
-      self.add_related_blank_node_hash(
-        &quad,
-        &quad.subject,
-        "s",
-        id,
-        issuer,
-        &mut hash_to_related,
-      );
-      self.add_related_blank_node_hash(
-        &quad,
-        &quad.object,
-        "o",
-        id,
-        issuer,
-        &mut hash_to_related,
-      );
-      self.add_related_blank_node_hash(
-        &quad,
-        &quad.graph,
-        "g",
-        id,
-        issuer,
-        &mut hash_to_related,
-      );
+      self.add_related_blank_node_hash(&quad, &quad.subject, "s", id, issuer, &mut hash_to_related);
+      self.add_related_blank_node_hash(&quad, &quad.object, "o", id, issuer, &mut hash_to_related);
+      self.add_related_blank_node_hash(&quad, &quad.graph, "g", id, issuer, &mut hash_to_related);
     }
 
     hash_to_related
   }
 
-  fn hash_and_track_blank_node(
-    &mut self,
-    id: &str,
-    hash_to_blank_nodes: &mut HashBlankNodeMap,
-  ) {
+  fn hash_and_track_blank_node(&mut self, id: &str, hash_to_blank_nodes: &mut HashBlankNodeMap) {
     // 5.3.1) Create a hash, hash, according to the Hash First Degree
     // Quads algorithm.
     let hash = self.hash_first_degree_quads(id);
@@ -557,10 +525,7 @@ impl URDNA2015 {
     }
   }
 
-  fn use_canonical_id<'a, T>(
-    component: &'a mut T,
-    issuer: &mut IdentifierIssuer,
-  ) -> T
+  fn use_canonical_id<'a, T>(component: &'a mut T, issuer: &mut IdentifierIssuer) -> T
   where
     T: Term + Clone,
   {
