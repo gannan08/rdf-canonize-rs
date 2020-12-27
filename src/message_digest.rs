@@ -1,20 +1,22 @@
-use sha2::Digest;
+use ring::digest;
 
-#[derive(Clone, Debug, Default, PartialEq)]
-pub struct MessageDigest<T: Clone + Digest> {
-  hasher: T,
+#[derive(Clone)]
+pub struct MessageDigest {
+  ctx: digest::Context,
 }
 
-impl<T: Clone + Digest> MessageDigest<T> {
-  pub fn new() -> MessageDigest<T> {
-    MessageDigest { hasher: T::new() }
+impl MessageDigest {
+  pub fn new(algorithm: &'static digest::Algorithm) -> MessageDigest {
+    MessageDigest {
+      ctx: digest::Context::new(algorithm),
+    }
   }
 
-  pub fn update(&mut self, msg: &str) {
-    self.hasher.update(msg);
+  pub fn update(&mut self, msg: &[u8]) {
+    self.ctx.update(msg);
   }
 
-  pub fn digest(md: MessageDigest<T>) -> String {
-    hex::encode(md.hasher.finalize())
+  pub fn digest(md: MessageDigest) -> String {
+    hex::encode(md.ctx.finish())
   }
 }

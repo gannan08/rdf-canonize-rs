@@ -5,7 +5,7 @@ use crate::nquads::{Dataset, Quad, Term, TermType};
 use crate::permuter::Permuter;
 
 use lexical_sort::natural_lexical_cmp;
-use sha2::Sha256;
+use ring::digest::SHA256;
 use std::collections::HashMap;
 
 const NAME: &str = "URDNA2015";
@@ -214,9 +214,9 @@ impl<'b> URDNA2015<'b> {
 
     // 5) Return the hash that results from passing the sorted, joined nquads
     // through the hash algorithm.
-    let mut md: MessageDigest<Sha256> = MessageDigest::new();
+    let mut md: MessageDigest = MessageDigest::new(&SHA256);
     for quad in &serialized_quads {
-      md.update(&quad);
+      md.update(&quad.as_bytes());
     }
     let hex = MessageDigest::digest(md);
     info.hash = Some(hex.clone());
@@ -249,17 +249,17 @@ impl<'b> URDNA2015<'b> {
 
     // 2) Initialize a string input to the value of position.
     // Note: We use a hash object instead.
-    let mut md: MessageDigest<Sha256> = MessageDigest::new();
-    md.update(position);
+    let mut md: MessageDigest = MessageDigest::new(&SHA256);
+    md.update(position.as_bytes());
 
     // 3) If position is not g, append <, the value of the predicate in quad,
     // and > to input.
     if position != "g" {
-      md.update(&self.get_related_predicate(quad));
+      md.update(&self.get_related_predicate(quad).as_bytes());
     }
 
     // 4) Append identifier to input.
-    md.update(&id);
+    md.update(id.as_bytes());
 
     // 5) Return the hash that results from passing input through the hash
     // algorithm.
@@ -271,9 +271,9 @@ impl<'b> URDNA2015<'b> {
     // 1) Create a hash to related blank nodes map for storing hashes that
     // identify related blank nodes.
     // Note: 2) and 3) handled within `create_hash_to_related`
-    let mut md: MessageDigest<Sha256> = MessageDigest::new();
+    let mut md: MessageDigest = MessageDigest::new(&SHA256);
     let mut issuer = issuer;
-    let mut hash_to_related = self.create_hash_to_related(id, &mut issuer);
+    let mut hash_to_related = self.create_hash_to_related(id, &mut issuer.clone());
 
     // 4) Create an empty string, data to hash.
     // Note: We created a hash object `md` above instead.
@@ -284,7 +284,7 @@ impl<'b> URDNA2015<'b> {
     hashes.sort_unstable();
     for hash in hashes {
       // 5.1) Append the related hash to the data to hash.
-      md.update(&hash);
+      md.update(hash.as_bytes());
 
       // 5.2) Create a string chosen path.
       let mut chosen_path = String::from("");
@@ -392,7 +392,7 @@ impl<'b> URDNA2015<'b> {
       }
 
       // 5.5) Append chosen path to data to hash.
-      md.update(&chosen_path);
+      md.update(chosen_path.as_bytes());
 
       // 5.6) Replace issuer, by reference, with chosen issuer.
       issuer = chosen_issuer;
