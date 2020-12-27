@@ -14,8 +14,7 @@ const WSO: &str = "[ \\t]*";
 const XSD_STRING: &str = "http://www.w3.org/2001/XMLSchema#string";
 
 // RDF constants
-const RDF_LANGSTRING: &str =
-  "http://www.w3.org/1999/02/22-rdf-syntax-ns#langString";
+const RDF_LANGSTRING: &str = "http://www.w3.org/1999/02/22-rdf-syntax-ns#langString";
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum TermType {
