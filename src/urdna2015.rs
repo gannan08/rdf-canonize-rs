@@ -183,8 +183,8 @@ impl URDNA2015 {
     its new identifier. */
 
     // 7) For each quad, quad, in input dataset:
-    let mut normalized = Vec::with_capacity(self.quads.borrow().to_vec().len());
-    for quad in self.quads.borrow_mut().to_vec().iter() {
+    let mut normalized = Vec::with_capacity(self.quads.borrow().len());
+    for quad in self.quads.borrow_mut().iter() {
       // 7.1) Create a copy, quad copy, of quad and replace any existing
       // blank node identifiers using the canonical identifiers
       // previously issued by canonical issuer.
@@ -220,7 +220,7 @@ impl URDNA2015 {
     // some document/spec?
     // 2) Initialize nquads to an empty list. It will be used to store quads in
     // N-Quads format.
-    let mut serialized_quads: Vec<String> = Vec::with_capacity(info.quads.borrow().to_vec().len());
+    let mut serialized_quads: Vec<String> = Vec::with_capacity(info.quads.borrow().len());
 
     for quad in &mut info.quads.borrow_mut().to_vec() {
       // 3.1) Serialize the quad in N-Quads format with the following special
@@ -534,11 +534,9 @@ impl URDNA2015 {
 
     let id = component.get_value();
     if let Some(info) = self.blank_node_info.get_mut(&id) {
-      info.quads.borrow().to_vec().push(quad.clone());
+      info.quads.borrow_mut().push(quad.clone());
     } else {
-      let quads = RefCell::new(vec![]);
-      let mut q = RefCell::new(vec![]).borrow().to_vec();
-      q.push(quad.clone());
+      let quads = RefCell::new(vec![quad.clone()]);
       self
         .blank_node_info
         .insert(id, BlankNodeInfo { quads, hash: None });

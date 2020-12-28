@@ -226,11 +226,11 @@ impl Dataset {
     let graph_name = graph.value;
     match self.graph_map.get_mut(&graph_name) {
       Some(quad_ptrs) => {
-        quad_ptrs.push(self.quads.borrow().to_vec().len());
+        quad_ptrs.push(self.quads.borrow().len());
       }
       None => {
         let mut quad_ptrs = Vec::new();
-        quad_ptrs.push(self.quads.borrow().to_vec().len());
+        quad_ptrs.push(self.quads.borrow().len());
         self.graph_map.insert(graph_name, quad_ptrs);
       }
     }
