@@ -514,10 +514,39 @@ fn parse_graph(group: &regex::Captures) -> Graph {
 fn escape_string(unescaped: &str) -> String {
   let mut escaped = unescaped.to_string();
 
-  escaped = escaped.replace("\\", "\\\\");
-  escaped = escaped.replace("\r", "\\r");
-  escaped = escaped.replace("\n", "\\n");
-  escaped = escaped.replace("\"", "\\\"");
+  let mut double_slash = false;
+  let mut return_char = false;
+  let mut newline_char = false;
+  let mut double_quote = false;
+  for c in unescaped.chars() {
+    if c == '\\' {
+      double_slash = true;
+    } else if c == '\n' {
+      newline_char = true;
+    } else if c == '\r' {
+      return_char = true;
+    } else if c == '\"' {
+      double_quote = true;
+    }
+  }
+
+  // nothing to do, return early
+  if !(double_slash || return_char || newline_char || double_quote) {
+    return escaped
+  }
+
+  if double_slash {
+    escaped = escaped.replace("\\", "\\\\");
+  }
+  if return_char {
+    escaped = escaped.replace("\r", "\\r");
+  }
+  if newline_char {
+    escaped = escaped.replace("\n", "\\n");
+  }
+  if double_quote {
+    escaped = escaped.replace("\"", "\\\"");
+  }
 
   escaped
 }
