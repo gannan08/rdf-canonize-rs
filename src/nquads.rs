@@ -2,6 +2,7 @@ extern crate regex;
 
 use regex::Regex;
 use std::collections::HashMap;
+use std::cell::RefCell;
 
 // define partial regexes
 const IRI: &str = "(?:<([^:]+:[^>]*)>)";
@@ -204,7 +205,7 @@ impl Default for Quad {
   }
 }
 
-pub type QuadSet = Vec<Quad>;
+pub type QuadSet = RefCell<Vec<Quad>>;
 
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct Dataset {
@@ -215,7 +216,7 @@ pub struct Dataset {
 impl Dataset {
   pub fn new() -> Dataset {
     Dataset {
-      quads: Vec::new(),
+      quads: RefCell::new(Vec::new()),
       graph_map: HashMap::new(),
     }
   }
@@ -225,16 +226,15 @@ impl Dataset {
     let graph_name = graph.value;
     match self.graph_map.get_mut(&graph_name) {
       Some(quad_ptrs) => {
-        quad_ptrs.push(self.quads.len());
+        quad_ptrs.push(self.quads.borrow().to_vec().len());
       }
       None => {
         let mut quad_ptrs = Vec::new();
-        quad_ptrs.push(self.quads.len());
+        quad_ptrs.push(self.quads.borrow().to_vec().len());
         self.graph_map.insert(graph_name, quad_ptrs);
       }
     }
-
-    self.quads.push(quad);
+    self.quads.borrow_mut().push(quad);
 
     true
   }

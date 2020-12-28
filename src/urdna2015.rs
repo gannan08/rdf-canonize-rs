@@ -9,12 +9,14 @@ use std::time::{Instant};
 use lexical_sort::natural_lexical_cmp;
 use sha2::Sha256;
 use std::collections::HashMap;
+use std::cell::RefCell;
 
 const NAME: &str = "URDNA2015";
 const HASH_ALGORITHM: &str = "sha256";
 
 static mut ACCUM_HASH_TO_RELATED: u128 = 0;
 static mut ACCUM_HASH_RELATED: u128 = 0;
+static mut ACCUM_3: u128 = 0;
 
 type Hash = String;
 type BlankNodeInfoMap = HashMap<String, BlankNodeInfo>;
@@ -49,18 +51,17 @@ impl URDNA2015 {
       blank_node_info: BlankNodeInfoMap::new(),
       canonical_issuer: IdentifierIssuer::new("_:c14n"),
       hash_algorithm: String::from(HASH_ALGORITHM),
-      quads: vec![],
+      quads: RefCell::new(vec![]),
     }
   }
 
   // 4.4) Normalization Algorithm
   pub fn main(&mut self, dataset: &Dataset) -> String {
-    self.quads = dataset.quads.clone();
-    let quads = &dataset.quads;
+    self.quads = RefCell::new(dataset.quads.borrow().to_vec());
+    // let quads = &dataset.quads;
     // 1) Create the normalization state.
-
     // 2) For every quad in input dataset:
-    for quad in quads {
+    for quad in &mut self.quads.get_mut().to_vec() {
       // 2.1) For each blank node that occurs in the quad, add a reference
       // to the quad using the blank node identifier in the blank node to
       // quads map, creating a new entry if necessary.
@@ -182,8 +183,8 @@ impl URDNA2015 {
     its new identifier. */
 
     // 7) For each quad, quad, in input dataset:
-    let mut normalized = Vec::with_capacity(self.quads.len());
-    for quad in self.quads.iter() {
+    let mut normalized = Vec::with_capacity(self.quads.borrow().to_vec().len());
+    for quad in self.quads.borrow_mut().to_vec().iter() {
       // 7.1) Create a copy, quad copy, of quad and replace any existing
       // blank node identifiers using the canonical identifiers
       // previously issued by canonical issuer.
@@ -200,10 +201,11 @@ impl URDNA2015 {
     // sort normalized output
     normalized.sort_unstable();
     // println!("FOURTH_TIMER {}", fourth_timer.elapsed().as_micros());
-    unsafe {
-      println!("ACCUM_HASH_TO_RELATED {}", ACCUM_HASH_TO_RELATED);
-      println!("ACCUM_HASH_RELATED {}", ACCUM_HASH_RELATED);
-    }
+    // unsafe {
+    //   println!("ACCUM_HASH_TO_RELATED {}", ACCUM_HASH_TO_RELATED);
+    //   println!("ACCUM_HASH_RELATED {}", ACCUM_HASH_RELATED);
+    //   println!("ACCUM_3 {}", ACCUM_3);
+    // }
     // 8) Return the normalized dataset.
     normalized.join("")
   }
@@ -218,9 +220,9 @@ impl URDNA2015 {
     // some document/spec?
     // 2) Initialize nquads to an empty list. It will be used to store quads in
     // N-Quads format.
-    let mut serialized_quads: Vec<String> = Vec::with_capacity(info.quads.len());
+    let mut serialized_quads: Vec<String> = Vec::with_capacity(info.quads.borrow().to_vec().len());
 
-    for quad in &mut info.quads {
+    for quad in &mut info.quads.borrow_mut().to_vec() {
       // 3.1) Serialize the quad in N-Quads format with the following special
       // rule:
 
@@ -480,9 +482,16 @@ impl URDNA2015 {
     // identify related blank nodes.
     let mut hash_to_related = HashToRelatedMap::new();
 
+    let _timer = Instant::now();
+
     // 2) Get a reference, quads, to the list of quads in the blank node to
     // quads map for the key identifier.
-    let quads = self.blank_node_info.get_mut(id).unwrap().quads.clone();
+    let quads = self.blank_node_info.get_mut(id).unwrap().quads.borrow_mut().to_vec();
+    let j = _timer.elapsed().as_micros();
+    unsafe {
+      ACCUM_3 += j;
+    }
+
 
     // println!("QUADS_LENGTH {}", quads.len());
     // 3) For each quad in quads:
@@ -525,10 +534,11 @@ impl URDNA2015 {
 
     let id = component.get_value();
     if let Some(info) = self.blank_node_info.get_mut(&id) {
-      info.quads.push(quad.clone());
+      info.quads.borrow().to_vec().push(quad.clone());
     } else {
-      let mut quads = QuadSet::new();
-      quads.push(quad.clone());
+      let quads = RefCell::new(vec![]);
+      let mut q = RefCell::new(vec![]).borrow().to_vec();
+      q.push(quad.clone());
       self
         .blank_node_info
         .insert(id, BlankNodeInfo { quads, hash: None });
