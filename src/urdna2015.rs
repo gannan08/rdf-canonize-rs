@@ -117,7 +117,7 @@ impl<'b> URDNA2015<'b> {
     for id_list in non_unique {
       // 6.1) Create hash path list where each item will be a result of
       // running the Hash N-Degree Quads algorithm.
-      let mut hash_path_list = vec![];
+      let mut hash_path_list = Vec::with_capacity(id_list.len());
       // 6.2) For each blank node identifier identifier in identifier list:
       for id in id_list.iter() {
         // 6.2.1) If a canonical identifier has already been issued for
@@ -163,7 +163,7 @@ impl<'b> URDNA2015<'b> {
     its new identifier. */
 
     // 7) For each quad, quad, in input dataset:
-    let mut normalized = vec![];
+    let mut normalized = Vec::with_capacity(quads.len());
     for quad in quads.iter() {
       // 7.1) Create a copy, quad copy, of quad and replace any existing
       // blank node identifiers using the canonical identifiers
@@ -292,7 +292,7 @@ impl<'b> URDNA2015<'b> {
       let mut chosen_issuer: IdentifierIssuer = IdentifierIssuer::default();
 
       // 5.4) For each permutation of blank node list:
-      let mut blank_node_list = vec![];
+      let mut blank_node_list = Vec::with_capacity(hash_to_related.len());
       for blank_node_id in hash_to_related.get_mut(&hash).unwrap() {
         blank_node_list.push(&blank_node_id[..]);
       }
