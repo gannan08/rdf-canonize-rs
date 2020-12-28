@@ -1,7 +1,7 @@
 use crate::identifier_issuer::IdentifierIssuer;
 use crate::message_digest::MessageDigest;
 use crate::nquads;
-use crate::nquads::{Dataset, Quad, QuadSet, Term, TermType};
+use crate::nquads::{Dataset, Quad, Term, TermType};
 use crate::permuter::Permuter;
 
 use lexical_sort::natural_lexical_cmp;
@@ -12,7 +12,7 @@ const NAME: &str = "URDNA2015";
 const HASH_ALGORITHM: &str = "sha256";
 
 type Hash = String;
-type BlankNodeInfoMap = HashMap<String, BlankNodeInfo>;
+type BlankNodeInfoMap<'a> = HashMap<String, BlankNodeInfo<'a>>;
 type HashBlankNodeMap = HashMap<String, Vec<String>>;
 type HashToRelatedMap = HashMap<String, Vec<String>>;
 
@@ -23,37 +23,33 @@ struct HashNDegreeResult {
 }
 
 #[derive(Clone, Debug, PartialEq)]
-struct BlankNodeInfo {
-  pub quads: QuadSet,
+struct BlankNodeInfo<'a> {
+  pub quads: Vec<&'a Quad>,
   hash: Option<Hash>,
 }
 
 #[derive(Clone, Debug, PartialEq)]
-pub struct URDNA2015 {
+pub struct URDNA2015<'a> {
   name: String,
-  blank_node_info: BlankNodeInfoMap,
+  blank_node_info: BlankNodeInfoMap<'a>,
   canonical_issuer: IdentifierIssuer,
   hash_algorithm: String,
-  quads: QuadSet,
 }
 
-impl URDNA2015 {
-  pub fn new() -> URDNA2015 {
+impl<'b> URDNA2015<'b> {
+  pub fn new<'a>() -> URDNA2015<'a> {
     URDNA2015 {
       name: String::from(NAME),
       blank_node_info: BlankNodeInfoMap::new(),
       canonical_issuer: IdentifierIssuer::new("_:c14n"),
       hash_algorithm: String::from(HASH_ALGORITHM),
-      quads: vec![],
     }
   }
 
   // 4.4) Normalization Algorithm
-  pub fn main(&mut self, dataset: &Dataset) -> String {
-    self.quads = dataset.quads.clone();
+  pub fn main(&mut self, dataset: &'b Dataset) -> String {
     let quads = &dataset.quads;
     // 1) Create the normalization state.
-
     // 2) For every quad in input dataset:
     for quad in quads {
       // 2.1) For each blank node that occurs in the quad, add a reference
@@ -90,13 +86,12 @@ impl URDNA2015 {
     let mut hashes = hashmap_keys_to_vec(&hash_to_blank_nodes);
     hashes.sort_unstable();
     // optimize away second sort, gather non-unique hashes in order as we go
-    let mut non_unique: Vec<Vec<String>> = Vec::new();
+    let mut non_unique: Vec<&Vec<String>> = Vec::new();
 
     for hash in &hashes {
       // 5.4.1) If the length of identifier list is greater than 1,
       // continue to the next mapping.
-      let mut id_list = hash_to_blank_nodes.get(hash).unwrap().clone();
-      id_list.sort_by(|a, b| natural_lexical_cmp(&a, &b));
+      let id_list = hash_to_blank_nodes.get(hash).unwrap();
       if id_list.len() > 1 {
         non_unique.push(id_list);
         continue;
@@ -119,12 +114,12 @@ impl URDNA2015 {
     // 6) For each hash to identifier list mapping in hash to blank nodes map,
     // lexicographically-sorted by hash:
     // Note: sort optimized away, use `non_unique`.
-    for id_list in &mut non_unique {
+    for id_list in non_unique {
       // 6.1) Create hash path list where each item will be a result of
       // running the Hash N-Degree Quads algorithm.
       let mut hash_path_list = vec![];
       // 6.2) For each blank node identifier identifier in identifier list:
-      for id in id_list {
+      for id in id_list.iter() {
         // 6.2.1) If a canonical identifier has already been issued for
         // identifier, continue to the next identifier.
         if self.canonical_issuer.has_id(&id) {
@@ -142,7 +137,7 @@ impl URDNA2015 {
 
         // 6.2.4) Run the Hash N-Degree Quads algorithm, passing
         // temporary issuer, and append the result to the hash path list.
-        let result = self.hash_n_degree_quads(&id, &mut issuer);
+        let result = self.hash_n_degree_quads(&id, issuer);
         hash_path_list.push(result);
       }
 
@@ -169,16 +164,16 @@ impl URDNA2015 {
 
     // 7) For each quad, quad, in input dataset:
     let mut normalized = vec![];
-    for quad in self.quads.iter() {
+    for quad in quads.iter() {
       // 7.1) Create a copy, quad copy, of quad and replace any existing
       // blank node identifiers using the canonical identifiers
       // previously issued by canonical issuer.
-      let mut q = quad.clone();
-      q.subject = Self::use_canonical_id(&mut q.subject, &mut self.canonical_issuer);
-      q.object = Self::use_canonical_id(&mut q.object, &mut self.canonical_issuer);
-      q.graph = Self::use_canonical_id(&mut q.graph, &mut self.canonical_issuer);
+      let mut quad_copy = quad.clone();
+      Self::use_canonical_id(&mut quad_copy.subject, &mut self.canonical_issuer);
+      Self::use_canonical_id(&mut quad_copy.object, &mut self.canonical_issuer);
+      Self::use_canonical_id(&mut quad_copy.graph, &mut self.canonical_issuer);
       // 7.2) Add quad copy to the normalized dataset.
-      normalized.push(nquads::serialize_quad(&q));
+      normalized.push(nquads::serialize_quad(&quad_copy));
     }
 
     // sort normalized output
@@ -204,14 +199,13 @@ impl URDNA2015 {
 
       // 3.1.1) If any component in quad is an blank node, then serialize it
       // using a special identifier as follows:
-      let mut copy = Quad::new();
-      copy.predicate = quad.predicate.clone();
+      let mut copy = quad.clone();
       // 3.1.2) If the blank node's existing blank node identifier matches
       // the reference blank node identifier then use the blank node
       // identifier _:a, otherwise, use the blank node identifier _:z.
-      copy.subject = Self::modify_first_degree_component(id, &quad.subject);
-      copy.object = Self::modify_first_degree_component(id, &quad.object);
-      copy.graph = Self::modify_first_degree_component(id, &quad.graph);
+      Self::modify_first_degree_component(id, &mut copy.subject);
+      Self::modify_first_degree_component(id, &mut copy.object);
+      Self::modify_first_degree_component(id, &mut copy.graph);
       serialized_quads.push(nquads::serialize_quad(&copy));
     }
 
@@ -273,12 +267,13 @@ impl URDNA2015 {
   }
 
   // 4.8) Hash N-Degree Quads
-  fn hash_n_degree_quads(&mut self, id: &str, issuer: &mut IdentifierIssuer) -> HashNDegreeResult {
+  fn hash_n_degree_quads(&mut self, id: &str, issuer: IdentifierIssuer) -> HashNDegreeResult {
     // 1) Create a hash to related blank nodes map for storing hashes that
     // identify related blank nodes.
     // Note: 2) and 3) handled within `create_hash_to_related`
     let mut md: MessageDigest<Sha256> = MessageDigest::new();
-    let mut hash_to_related = self.create_hash_to_related(id, &mut issuer.clone());
+    let mut issuer = issuer;
+    let mut hash_to_related = self.create_hash_to_related(id, &mut issuer);
 
     // 4) Create an empty string, data to hash.
     // Note: We created a hash object `md` above instead.
@@ -297,12 +292,11 @@ impl URDNA2015 {
       let mut chosen_issuer: IdentifierIssuer = IdentifierIssuer::default();
 
       // 5.4) For each permutation of blank node list:
-      let l = hash_to_related.get_mut(&hash).unwrap();
-      let mut list = vec![];
-      for a in l {
-        list.push(&a[..]);
+      let mut blank_node_list = vec![];
+      for blank_node_id in hash_to_related.get_mut(&hash).unwrap() {
+        blank_node_list.push(&blank_node_id[..]);
       }
-      let mut elements = Permuter::permutation_elements(&mut list);
+      let mut elements = Permuter::permutation_elements(&mut blank_node_list);
       let mut element_refs = Vec::with_capacity(elements.len());
       for element in elements.iter_mut() {
         element_refs.push(element);
@@ -359,9 +353,10 @@ impl URDNA2015 {
           // 5.4.5.1) Set result to the result of recursively executing
           // the Hash N-Degree Quads algorithm, passing related for
           // identifier and issuer copy for path identifier issuer.
-          let result = self.hash_n_degree_quads(related, &mut issuer_copy);
+          let id = issuer_copy.get_id(related);
+          let result = self.hash_n_degree_quads(related, issuer_copy);
           // copy and related and append the result to path.
-          path.push(issuer_copy.get_id(related));
+          path.push(id);
 
           // 5.4.5.3) Append <, the hash in result, and > to path.
           path.push(format!("<{}>", result.hash));
@@ -400,33 +395,27 @@ impl URDNA2015 {
       md.update(&chosen_path);
 
       // 5.6) Replace issuer, by reference, with chosen issuer.
-      issuer.prefix = chosen_issuer.prefix.clone();
-      issuer.counter = chosen_issuer.counter;
-      issuer.existing = chosen_issuer.existing.clone();
-      issuer.old_ids = chosen_issuer.old_ids.clone();
+      issuer = chosen_issuer;
     }
 
     HashNDegreeResult {
       hash: MessageDigest::digest(md),
-      issuer: issuer.clone(),
+      issuer,
     }
   }
 
   // helper for modifying component during Hash First Degree Quads
-  fn modify_first_degree_component<T>(id: &str, component: &T) -> T
+  fn modify_first_degree_component<T>(id: &str, copy: &mut T)
   where
-    T: Term + Clone,
+    T: Term,
   {
-    let mut c = component.clone();
-    if c.get_term_type() != TermType::BlankNode {
-      return c;
+    if *copy.get_term_type() != TermType::BlankNode {
+      return;
     }
 
-    let value = if c.get_value() == id { "_:a" } else { "_:z" };
-    c.set_value(&String::from(value));
-    c.set_term_type(&TermType::BlankNode);
-
-    c
+    let value = if copy.get_value() == id { "_:a" } else { "_:z" };
+    copy.set_value(&String::from(value));
+    copy.set_term_type(&TermType::BlankNode);
   }
 
   // helper for getting a related predicate
@@ -446,7 +435,7 @@ impl URDNA2015 {
 
     // 2) Get a reference, quads, to the list of quads in the blank node to
     // quads map for the key identifier.
-    let quads = self.blank_node_info.get_mut(id).unwrap().quads.clone();
+    let quads = self.blank_node_info.get(id).unwrap().quads.clone();
 
     // 3) For each quad in quads:
     for quad in quads {
@@ -478,23 +467,22 @@ impl URDNA2015 {
     }
   }
 
-  fn add_blank_node_quad_info<T>(&mut self, quad: &Quad, component: &T)
+  fn add_blank_node_quad_info<'a, T>(&'a mut self, quad: &'b Quad, component: &T)
   where
     T: Term,
   {
-    if component.get_term_type() != TermType::BlankNode {
+    if *component.get_term_type() != TermType::BlankNode {
       return;
     }
 
     let id = component.get_value();
-    if let Some(info) = self.blank_node_info.get_mut(&id) {
-      info.quads.push(quad.clone());
+    if let Some(info) = self.blank_node_info.get_mut(id) {
+      info.quads.push(quad);
     } else {
-      let mut quads = QuadSet::new();
-      quads.push(quad.clone());
+      let quads = vec![quad];
       self
         .blank_node_info
-        .insert(id, BlankNodeInfo { quads, hash: None });
+        .insert(id.to_string(), BlankNodeInfo { quads, hash: None });
     }
   }
 
@@ -510,7 +498,7 @@ impl URDNA2015 {
     T: Term,
   {
     let related = component.get_value();
-    if !(component.get_term_type() == TermType::BlankNode && related != id) {
+    if !(*component.get_term_type() == TermType::BlankNode && related != id) {
       return;
     }
     // 3.1.1) Set hash to the result of the Hash Related Blank Node
@@ -524,25 +512,20 @@ impl URDNA2015 {
     // component to hash to related blank nodes map, adding an entry as
     // necessary.
     if let Some(entries) = hash_to_related.get_mut(&hash) {
-      entries.push(related);
+      entries.push(related.to_string());
     } else {
-      hash_to_related.insert(hash, vec![related]);
+      hash_to_related.insert(hash, vec![related.to_string()]);
     }
   }
 
-  fn use_canonical_id<T>(component: &mut T, issuer: &mut IdentifierIssuer) -> T
+  fn use_canonical_id<T>(copy: &mut T, issuer: &mut IdentifierIssuer)
   where
-    T: Term + Clone,
+    T: Term,
   {
-    let mut c = component.clone();
-    if c.get_term_type() == TermType::BlankNode
-      && !component.get_value().starts_with(&issuer.prefix)
+    if *copy.get_term_type() == TermType::BlankNode && !copy.get_value().starts_with(&issuer.prefix)
     {
-      c.set_value(&issuer.get_id(&c.get_value()));
-      return c;
+      copy.set_value(&issuer.get_id(&copy.get_value()));
     }
-
-    c
   }
 }
 
