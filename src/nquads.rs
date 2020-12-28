@@ -3,6 +3,10 @@ extern crate regex;
 use regex::Regex;
 use std::collections::HashMap;
 
+// define default capacities
+pub const DEFAULT_NQUAD_CAPACITY: usize = 256;
+pub const DEFAULT_TERM_CAPACITY: usize = 64;
+
 // define partial regexes
 const IRI: &str = "(?:<([^:]+:[^>]*)>)";
 const PLAIN: &str = "\"([^\"\\\\]*(?:\\\\.[^\"\\\\]*)*)\"";
@@ -246,7 +250,7 @@ pub fn serialize_quad(quad: &Quad) -> String {
   let o = &quad.object;
   let g = &quad.graph;
 
-  let mut nquad = String::with_capacity(200);
+  let mut nquad = String::with_capacity(DEFAULT_NQUAD_CAPACITY);
 
   // subject can only be NamedNode or BlankNode
   if s.term_type == TermType::NamedNode {
@@ -325,7 +329,6 @@ pub fn parse_nquads(dataset: &str) -> Dataset {
   let mut rdf_dataset = Dataset::new();
 
   for line in lines {
-    println!("{}", line);
     let quad = parse_nquad(&line);
     rdf_dataset.add(quad);
   }

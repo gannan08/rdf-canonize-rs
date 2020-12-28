@@ -8,6 +8,13 @@ use lexical_sort::natural_lexical_cmp;
 use sha2::Sha256;
 use std::collections::HashMap;
 
+// A Hex Encoded SHA2 Digest will always be 64 characters
+// '<' + result.hash.len() + '>'
+//  1  +       64          +  1
+//                                = 66
+const RESULT_HASH_CAPACITY: usize = 66;
+const PERMUTATION_STRING_PATH_CAPACITY: usize = 128;
+
 const NAME: &str = "URDNA2015";
 const HASH_ALGORITHM: &str = "sha256";
 
@@ -308,7 +315,7 @@ impl<'b> URDNA2015<'b> {
         let mut issuer_copy = issuer.clone();
 
         // 5.4.2) Create a string path.
-        let mut path = vec![];
+        let mut path = String::with_capacity(PERMUTATION_STRING_PATH_CAPACITY);
 
         // 5.4.3) Create a recursion list, to store blank node identifiers
         // that must be recursively processed by this algorithm.
@@ -320,7 +327,7 @@ impl<'b> URDNA2015<'b> {
           // 5.4.4.1) If a canonical identifier has been issued for
           // related, append it to path.
           if self.canonical_issuer.has_id(&related) {
-            path.push(self.canonical_issuer.get_id(related))
+            path.push_str(&self.canonical_issuer.get_id(related))
           } else {
             // 5.4.4.2) Otherwise:
             // 5.4.4.2.1) If issuer copy has not issued an identifier for
@@ -330,7 +337,7 @@ impl<'b> URDNA2015<'b> {
             }
             // 5.4.4.2.2) Use the Issue Identifier algorithm, passing
             // issuer copy and related and append the result to path.
-            path.push(issuer_copy.get_id(related))
+            path.push_str(&issuer_copy.get_id(related))
           }
 
           // 5.4.4.3) If chosen path is not empty and the length of path
@@ -339,7 +346,7 @@ impl<'b> URDNA2015<'b> {
           // skip to the next permutation.
           // Note: Comparing path length to chosen path length can be optimized
           // away; only compare lexicographically.
-          if chosen_path.is_empty() && path.join("") < chosen_path {
+          if chosen_path.is_empty() && path < chosen_path {
             next_permutation = true;
             break;
           }
@@ -357,10 +364,14 @@ impl<'b> URDNA2015<'b> {
           let id = issuer_copy.get_id(related);
           let result = self.hash_n_degree_quads(related, issuer_copy);
           // copy and related and append the result to path.
-          path.push(id);
+          path.push_str(&id);
 
           // 5.4.5.3) Append <, the hash in result, and > to path.
-          path.push(format!("<{}>", result.hash));
+          let mut result_hash = String::with_capacity(RESULT_HASH_CAPACITY);
+          result_hash.push('<');
+          result_hash.push_str(&result.hash);
+          result_hash.push('>');
+          path.push_str(&result_hash);
 
           // 5.4.5.4) Set issuer copy to the identifier issuer in
           // result.
@@ -372,7 +383,7 @@ impl<'b> URDNA2015<'b> {
           // skip to the next permutation.
           // Note: Comparing path length to chosen path length can be optimized
           // away; only compare lexicographically.
-          if chosen_path.is_empty() && path.join("") < chosen_path {
+          if chosen_path.is_empty() && path < chosen_path {
             next_permutation = true;
             break;
           }
@@ -385,9 +396,8 @@ impl<'b> URDNA2015<'b> {
         // 5.4.6) If chosen path is empty or path is lexicographically
         // less than chosen path, set chosen path to path and chosen
         // issuer to issuer copy.
-        let path_str = path.join("");
-        if chosen_path.is_empty() || path_str < chosen_path {
-          chosen_path = path_str;
+        if chosen_path.is_empty() || path < chosen_path {
+          chosen_path = path;
           chosen_issuer = issuer_copy;
         }
       }
@@ -421,7 +431,14 @@ impl<'b> URDNA2015<'b> {
 
   // helper for getting a related predicate
   fn get_related_predicate(&self, quad: &Quad) -> String {
-    format!("<{}>", quad.predicate.get_value())
+    let mut related_predicate = String::with_capacity(nquads::DEFAULT_TERM_CAPACITY);
+
+    // append "<quad.predicate.value>"
+    related_predicate.push('<');
+    related_predicate.push_str(quad.predicate.get_value());
+    related_predicate.push('>');
+
+    related_predicate
   }
 
   // helper for creating hash to related blank nodes map
