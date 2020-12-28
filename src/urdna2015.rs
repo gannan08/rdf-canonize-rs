@@ -190,12 +190,13 @@ impl URDNA2015 {
 
   // 4.6) Hash First Degree Quads
   fn hash_first_degree_quads(&mut self, id: &str) -> String {
-    // 1) Get the list of quads `quads` associated with the reference blank node
-    // identifier in the blank node to quads map.
-    let mut info = self.blank_node_info.get_mut(id).unwrap();
-
-    // 2) Initialize nquads to an empty list. It will be used to store quads in
+    // 1) Initialize nquads to an empty list. It will be used to store quads in
     // N-Quads format.
+    // 2) Get the list of quads `quads` associated with the reference blank node
+    // identifier in the blank node to quads map.
+    // Note: We get the list of quads first and use its length to preallocate the
+    // capacity of `serialized_quads` to prevent future reallocation.
+    let mut info = self.blank_node_info.get_mut(id).unwrap();
     let mut serialized_quads: Vec<String> = Vec::with_capacity(info.quads.len());
 
     for quad in &mut info.quads {
