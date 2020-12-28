@@ -250,14 +250,17 @@ pub fn serialize_quad(quad: &Quad) -> String {
 
   // subject can only be NamedNode or BlankNode
   if s.term_type == TermType::NamedNode {
+    // append "<subject.value>"
     nquad.push('<');
     nquad.push_str(&s.value);
     nquad.push('>');
   } else {
+    // append "subject.value"
     nquad.push_str(&s.value);
   }
 
   // predicate can only be NamedNode
+  // append " <predicate.value> "
   nquad.push(' ');
   nquad.push('<');
   nquad.push_str(&p.value);
@@ -266,25 +269,30 @@ pub fn serialize_quad(quad: &Quad) -> String {
 
   // object is NamedNode, BlankNode, or Literal
   if o.term_type == TermType::NamedNode {
+    // append "<object.value>"
     nquad.push('<');
     nquad.push_str(&o.value);
     nquad.push('>');
   } else if o.term_type == TermType::BlankNode {
+    // append "object.value"
     nquad.push_str(&o.value)
   } else {
+    // append "\"escape(object.value)\""
     nquad.push('\"');
     nquad.push_str(&escape_string(&o.value));
     nquad.push('\"');
     if let Some(datatype) = &o.datatype {
       if datatype == RDF_LANGSTRING {
         match &o.language {
+          // append "@language"
           Some(language) => {
             nquad.push('@');
             nquad.push_str(&language);
-          },
+          }
           None => {}
         }
       } else if datatype != XSD_STRING {
+        // append "^^<datatype>"
         nquad.push('^');
         nquad.push('^');
         nquad.push('<');
@@ -297,15 +305,18 @@ pub fn serialize_quad(quad: &Quad) -> String {
   // graph can only be NamedNode or BlankNode (or DefaultGraph, but that
   // does not add to `nquad`)
   if g.term_type == TermType::NamedNode {
+    // append " <graph.value>"
     nquad.push(' ');
     nquad.push('<');
     nquad.push_str(&g.value);
     nquad.push('>');
   } else if g.term_type == TermType::BlankNode {
+    // append " graph.value"
     nquad.push(' ');
     nquad.push_str(&g.value);
   }
 
+  // append " .\n"
   nquad.push(' ');
   nquad.push('.');
   nquad.push('\n');
