@@ -2,6 +2,7 @@ extern crate regex;
 
 use regex::Regex;
 use std::collections::HashMap;
+use std::borrow::Cow;
 
 // define default capacities
 pub const DEFAULT_NQUAD_CAPACITY: usize = 256;
@@ -514,15 +515,26 @@ fn parse_graph(group: &regex::Captures) -> Graph {
   }
 }
 
-fn escape_string(unescaped: &str) -> String {
-  let mut escaped = unescaped.to_string();
-
-  escaped = escaped.replace("\\", "\\\\");
-  escaped = escaped.replace("\r", "\\r");
-  escaped = escaped.replace("\n", "\\n");
-  escaped = escaped.replace("\"", "\\\"");
-
-  escaped
+// optimized for the common case where no escaping is required
+fn escape_string<'a, S: Into<Cow<'a, str>>>(input: S) -> Cow<'a, str> {
+  lazy_static! {
+    static ref REGEX: Regex = Regex::new("[\\\\\n\r\"]").unwrap();
+  }
+  let input = input.into();
+  let first = REGEX.find(&input);
+  if let Some(_first) = first {
+    // TODO: future optimization possible because the position of the first
+    // matched character is known, and therefore the replacement can operate
+    // on just the remaining part
+    let mut escaped = String::from(input);
+    escaped = escaped.replace("\\", "\\\\");
+    escaped = escaped.replace("\r", "\\r");
+    escaped = escaped.replace("\n", "\\n");
+    escaped = escaped.replace("\"", "\\\"");
+    return escaped.into()
+  } else {
+    input.into()
+  }
 }
 
 fn unescape_string(escaped: &str) -> String {
