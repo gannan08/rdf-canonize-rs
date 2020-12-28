@@ -123,7 +123,7 @@ impl<'b> URDNA2015<'b> {
       // 5.4.4) Remove hash from the hash to blank nodes map.
       // 5.4.5) Set simple to true.
     }
-    // println!("FIRST_TIMER {}", first_timer.elapsed().as_micros());
+    println!("FIRST_TIMER {}", first_timer.elapsed().as_micros());
 
     let second_timer = Instant::now();
     // 6) For each hash to identifier list mapping in hash to blank nodes map,
@@ -155,10 +155,10 @@ impl<'b> URDNA2015<'b> {
         // temporary issuer, and append the result to the hash path list.
         let sixth_timer = Instant::now();
         let result = self.hash_n_degree_quads(&id, issuer);
-        // println!("SIXTH_TIMER {}", sixth_timer.elapsed().as_micros());
+        println!("SIXTH_TIMER {}", sixth_timer.elapsed().as_micros());
         hash_path_list.push(result);
       }
-      // println!("FIFTH_TIMER {}", fifth_timer.elapsed().as_micros());
+      println!("FIFTH_TIMER {}", fifth_timer.elapsed().as_micros());
 
       // 6.3) For each result in the hash path list,
       // lexicographically-sorted by the hash in result:
@@ -176,7 +176,7 @@ impl<'b> URDNA2015<'b> {
       }
     }
 
-    // println!("SECOND_TIMER {}", second_timer.elapsed().as_micros());
+    println!("SECOND_TIMER {}", second_timer.elapsed().as_micros());
     let third_timer = Instant::now();
     /* Note: At this point all blank nodes in the set of RDF quads have been
     assigned canonical identifiers, which have been stored in the canonical
@@ -197,11 +197,11 @@ impl<'b> URDNA2015<'b> {
       normalized.push(nquads::serialize_quad(&quad_copy));
     }
 
-    // println!("THIRD_TIMER {}", third_timer.elapsed().as_micros());
+    println!("THIRD_TIMER {}", third_timer.elapsed().as_micros());
     let fourth_timer = Instant::now();
     // sort normalized output
     normalized.sort_unstable();
-    // println!("FOURTH_TIMER {}", fourth_timer.elapsed().as_micros());
+    println!("FOURTH_TIMER {}", fourth_timer.elapsed().as_micros());
     unsafe {
       println!("ACCUM_HASH_TO_RELATED {}", ACCUM_HASH_TO_RELATED);
       println!("ACCUM_HASH_RELATED {}", ACCUM_HASH_RELATED);
@@ -317,7 +317,7 @@ impl<'b> URDNA2015<'b> {
     // blank nodes map, sorted lexicographically by related hash:
     let hn2_timer = Instant::now();
     let mut hashes = hashmap_keys_to_vec(&hash_to_related);
-    // println!("HN2_TIMER {}", hn2_timer.elapsed().as_micros());
+    println!("HN2_TIMER {}", hn2_timer.elapsed().as_micros());
     // hashes.sort_by(|a, b| natural_lexical_cmp(&a, &b));
     hashes.sort_unstable();
     let hn3_timer = Instant::now();
@@ -421,7 +421,7 @@ impl<'b> URDNA2015<'b> {
           }
         }
         // println!("recursionlistlen {}", recursion_list.len());
-        // println!("HN7_TIMER {}", hn7_timer.elapsed().as_micros());
+        println!("HN7_TIMER {}", hn7_timer.elapsed().as_micros());
         if next_permutation {
           continue;
         }
@@ -441,7 +441,7 @@ impl<'b> URDNA2015<'b> {
       // 5.6) Replace issuer, by reference, with chosen issuer.
       issuer = chosen_issuer;
     }
-    // println!("HN3_TIMER {}", hn3_timer.elapsed().as_micros());
+    println!("HN3_TIMER {}", hn3_timer.elapsed().as_micros());
 
     HashNDegreeResult {
       hash: MessageDigest::digest(md),
@@ -583,10 +583,13 @@ impl<'b> URDNA2015<'b> {
   where
     T: Term,
   {
+    let mut did = false;
     if *copy.get_term_type() == TermType::BlankNode && !copy.get_value().starts_with(&issuer.prefix)
     {
+      did = true;
       copy.set_value(&issuer.get_id(&copy.get_value()));
     }
+    if !did {println!("BBBBBB")};
   }
 }
 
