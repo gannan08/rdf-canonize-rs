@@ -222,7 +222,7 @@ impl URDNA2015 {
     // N-Quads format.
     let mut serialized_quads: Vec<String> = Vec::with_capacity(info.quads.borrow().len());
 
-    for quad in &mut info.quads.borrow_mut().to_vec() {
+    for quad in &mut info.quads.borrow().to_vec() {
       // 3.1) Serialize the quad in N-Quads format with the following special
       // rule:
 
