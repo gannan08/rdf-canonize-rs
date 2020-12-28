@@ -27,7 +27,7 @@ impl Permuter<'_> {
     Permuter { current, done, dir }
   }
 
-  pub fn elements<'a>(list: &mut [&'a str]) -> Vec<&'a str> {
+  pub fn permutation_elements<'a>(list: &mut [&'a str]) -> Vec<&'a str> {
     // original array
     list.sort_unstable();
 

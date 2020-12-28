@@ -209,9 +209,9 @@ impl URDNA2015 {
       // 3.1.2) If the blank node's existing blank node identifier matches
       // the reference blank node identifier then use the blank node
       // identifier _:a, otherwise, use the blank node identifier _:z.
-      copy.subject = Self::modify_first_degree_component(id, &mut quad.subject);
-      copy.object = Self::modify_first_degree_component(id, &mut quad.object);
-      copy.graph = Self::modify_first_degree_component(id, &mut quad.graph);
+      copy.subject = Self::modify_first_degree_component(id, &quad.subject);
+      copy.object = Self::modify_first_degree_component(id, &quad.object);
+      copy.graph = Self::modify_first_degree_component(id, &quad.graph);
       serialized_quads.push(nquads::serialize_quad(&copy));
     }
 
@@ -302,7 +302,7 @@ impl URDNA2015 {
       for a in l {
         list.push(&a[..]);
       }
-      let mut elements = Permuter::elements(&mut list);
+      let mut elements = Permuter::permutation_elements(&mut list);
       let mut element_refs = Vec::with_capacity(elements.len());
       for element in elements.iter_mut() {
         element_refs.push(element);
@@ -413,7 +413,7 @@ impl URDNA2015 {
   }
 
   // helper for modifying component during Hash First Degree Quads
-  fn modify_first_degree_component<T>(id: &str, component: &mut T) -> T
+  fn modify_first_degree_component<T>(id: &str, component: &T) -> T
   where
     T: Term + Clone,
   {
