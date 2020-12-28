@@ -4,11 +4,12 @@ pub struct PermutationElement<'a> {
   value: &'a str,
 }
 
-pub type PermutationElements<'a> = Vec<&'a mut PermutationElement<'a>>;
+pub type PermutationElements<'a> = Vec<PermutationElement<'a>>;
+pub type PermutationElementRefs<'a> = Vec<&'a mut PermutationElement<'a>>;
 
 #[derive(Debug, PartialEq)]
 pub struct Permuter<'a> {
-  current: &'a mut PermutationElements<'a>,
+  current: &'a mut PermutationElementRefs<'a>,
   done: bool,
 }
 
@@ -17,15 +18,14 @@ impl Permuter<'_> {
    * A Permuter iterates over all possible permutations of the given array
    * of elements.
    *
-   * @param list the array of elements to iterate over.
    */
-  pub fn new<'a>(current: &'a mut PermutationElements<'a>) -> Permuter<'a> {
+  pub fn new<'a>(current: &'a mut PermutationElementRefs<'a>) -> Permuter<'a> {
     // indicates whether there are more permutations
     let done = false;
     Permuter { current, done }
   }
 
-  pub fn elements<'a>(list: &mut Vec<&'a str>) -> Vec<PermutationElement<'a>> {
+  pub fn permutation_elements<'a>(list: &mut Vec<&'a str>) -> PermutationElements<'a> {
     // original array
     list.sort_unstable();
 
