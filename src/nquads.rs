@@ -283,13 +283,10 @@ pub fn serialize_quad(quad: &Quad) -> String {
     nquad.push('\"');
     if let Some(datatype) = &o.datatype {
       if datatype == RDF_LANGSTRING {
-        match &o.language {
+        if let Some(language) = &o.language {
           // append "@language"
-          Some(language) => {
-            nquad.push('@');
-            nquad.push_str(&language);
-          }
-          None => {}
+          nquad.push('@');
+          nquad.push_str(&language);
         }
       } else if datatype != XSD_STRING {
         // append "^^<datatype>"
