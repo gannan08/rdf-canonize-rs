@@ -246,33 +246,50 @@ pub fn serialize_quad(quad: &Quad) -> String {
   let o = &quad.object;
   let g = &quad.graph;
 
-  let mut nquad = Vec::<String>::new();
+  let mut nquad = String::with_capacity(200);
 
   // subject can only be NamedNode or BlankNode
   if s.term_type == TermType::NamedNode {
-    nquad.push(format!("<{}>", s.value));
+    nquad.push('<');
+    nquad.push_str(&s.value);
+    nquad.push('>');
   } else {
-    nquad.push(s.value.to_string());
+    nquad.push_str(&s.value);
   }
 
   // predicate can only be NamedNode
-  nquad.push(format!(" <{}> ", p.value));
+  nquad.push(' ');
+  nquad.push('<');
+  nquad.push_str(&p.value);
+  nquad.push('>');
+  nquad.push(' ');
 
   // object is NamedNode, BlankNode, or Literal
   if o.term_type == TermType::NamedNode {
-    nquad.push(format!("<{}>", o.value));
+    nquad.push('<');
+    nquad.push_str(&o.value);
+    nquad.push('>');
   } else if o.term_type == TermType::BlankNode {
-    nquad.push(o.value.to_string())
+    nquad.push_str(&o.value)
   } else {
-    nquad.push(format!("\"{}\"", escape_string(&o.value)));
+    nquad.push('\"');
+    nquad.push_str(&escape_string(&o.value));
+    nquad.push('\"');
     if let Some(datatype) = &o.datatype {
       if datatype == RDF_LANGSTRING {
         match &o.language {
-          Some(language) => nquad.push(format!("@{}", language)),
+          Some(language) => {
+            nquad.push('@');
+            nquad.push_str(&language);
+          },
           None => {}
         }
       } else if datatype != XSD_STRING {
-        nquad.push(format!("^^<{}>", datatype))
+        nquad.push('^');
+        nquad.push('^');
+        nquad.push('<');
+        nquad.push_str(&datatype);
+        nquad.push('>');
       }
     }
   }
@@ -280,13 +297,19 @@ pub fn serialize_quad(quad: &Quad) -> String {
   // graph can only be NamedNode or BlankNode (or DefaultGraph, but that
   // does not add to `nquad`)
   if g.term_type == TermType::NamedNode {
-    nquad.push(format!(" <{}>", g.value));
+    nquad.push(' ');
+    nquad.push('<');
+    nquad.push_str(&g.value);
+    nquad.push('>');
   } else if g.term_type == TermType::BlankNode {
-    nquad.push(format!(" {}", g.value));
+    nquad.push(' ');
+    nquad.push_str(&g.value);
   }
 
-  nquad.push(String::from(" .\n"));
-  nquad.join("")
+  nquad.push(' ');
+  nquad.push('.');
+  nquad.push('\n');
+  nquad
 }
 pub fn parse_nquads(dataset: &str) -> Dataset {
   let lines = dataset.lines();
