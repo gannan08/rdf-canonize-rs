@@ -1,7 +1,7 @@
 use crate::identifier_issuer::IdentifierIssuer;
 use crate::message_digest::MessageDigest;
 use crate::nquads;
-use crate::nquads::{Dataset, Quad, QuadSerialize, Term, TermType};
+use crate::nquads::{Dataset, Quad, Term, TermType};
 use crate::permuter::Permuter;
 
 use lexical_sort::natural_lexical_cmp;
@@ -175,40 +175,46 @@ impl<'b> URDNA2015<'b> {
       // 7.1) Create a copy, quad copy, of quad and replace any existing
       // blank node identifiers using the canonical identifiers
       // previously issued by canonical issuer.
+
+      // subject
       let s: nquads::Subject;
       let mut subject: Option<&nquads::Subject> = None;
       if Self::should_use_canonical_id(&quad.subject, &self.canonical_issuer) {
         s = nquads::Subject {
-          term_type: *quad.subject.get_term_type(),
+          term_type: quad.subject.term_type,
           value: self
             .canonical_issuer
-            .get_existing_id(quad.subject.get_value())
+            .get_existing_id(&quad.subject.value)
             .unwrap(),
         };
         subject = Some(&s);
       }
+
+      // object
       let o: nquads::Object;
       let mut object: Option<&nquads::Object> = None;
       if Self::should_use_canonical_id(&quad.object, &self.canonical_issuer) {
         o = nquads::Object {
-          term_type: *quad.object.get_term_type(),
+          term_type: quad.object.term_type,
           value: self
             .canonical_issuer
-            .get_existing_id(quad.object.get_value())
+            .get_existing_id(&quad.object.value)
             .unwrap(),
           datatype: quad.object.get_datatype(),
           language: quad.object.get_language(),
         };
         object = Some(&o);
       }
+
+      // graph
       let g: nquads::Graph;
       let mut graph: Option<&nquads::Graph> = None;
       if Self::should_use_canonical_id(&quad.graph, &self.canonical_issuer) {
         g = nquads::Graph {
-          term_type: *quad.graph.get_term_type(),
+          term_type: quad.graph.term_type,
           value: self
             .canonical_issuer
-            .get_existing_id(quad.graph.get_value())
+            .get_existing_id(&quad.graph.value)
             .unwrap(),
         };
         graph = Some(&g);
@@ -253,14 +259,69 @@ impl<'b> URDNA2015<'b> {
 
       // 3.1.1) If any component in quad is an blank node, then serialize it
       // using a special identifier as follows:
-      let mut copy = quad.clone();
       // 3.1.2) If the blank node's existing blank node identifier matches
       // the reference blank node identifier then use the blank node
       // identifier _:a, otherwise, use the blank node identifier _:z.
-      Self::modify_first_degree_component(id, &mut copy.subject);
-      Self::modify_first_degree_component(id, &mut copy.object);
-      Self::modify_first_degree_component(id, &mut copy.graph);
-      serialized_quads.push(nquads::serialize_quad(&copy));
+
+      // subject
+      let s: nquads::Subject;
+      let mut subject: Option<&nquads::Subject> = None;
+      if Self::should_modify_first_degree_component(&quad.subject) {
+        s = nquads::Subject {
+          term_type: TermType::BlankNode,
+          value: if quad.subject.value == id {
+            "_:a".to_string()
+          } else {
+            "_:z".to_string()
+          },
+        };
+        subject = Some(&s);
+      }
+
+      // object
+      let o: nquads::Object;
+      let mut object: Option<&nquads::Object> = None;
+      if Self::should_modify_first_degree_component(&quad.object) {
+        o = nquads::Object {
+          term_type: TermType::BlankNode,
+          value: if quad.object.value == id {
+            "_:a".to_string()
+          } else {
+            "_:z".to_string()
+          },
+          datatype: quad.object.get_datatype(),
+          language: quad.object.get_language(),
+        };
+        object = Some(&o);
+      }
+
+      // graph
+      let g: nquads::Graph;
+      let mut graph: Option<&nquads::Graph> = None;
+      if Self::should_modify_first_degree_component(&quad.graph) {
+        g = nquads::Graph {
+          term_type: TermType::BlankNode,
+          value: if quad.graph.value == id {
+            "_:a".to_string()
+          } else {
+            "_:z".to_string()
+          },
+        };
+        graph = Some(&g);
+      }
+
+      if subject.is_none() && object.is_none() && graph.is_none() {
+        // use existing quad when there is no need to create a clone
+        serialized_quads.push(nquads::serialize_quad(*quad));
+      } else {
+        let quad_copy = nquads::QuadRef {
+          subject: subject.or(Some(&quad.subject)).unwrap(),
+          predicate: &quad.predicate,
+          object: object.or(Some(&quad.object)).unwrap(),
+          graph: graph.or(Some(&quad.graph)).unwrap(),
+        };
+        serialized_quads.push(nquads::serialize_quad(&quad_copy));
+      }
     }
 
     // 4) Sort nquads in lexicographical order.
@@ -461,18 +522,15 @@ impl<'b> URDNA2015<'b> {
     }
   }
 
-  // helper for modifying component during Hash First Degree Quads
-  fn modify_first_degree_component<T>(id: &str, copy: &mut T)
+  fn should_modify_first_degree_component<T>(copy: &T) -> bool
   where
     T: Term,
   {
     if *copy.get_term_type() != TermType::BlankNode {
-      return;
+      return false;
     }
 
-    let value = if copy.get_value() == id { "_:a" } else { "_:z" };
-    copy.set_value(&String::from(value));
-    copy.set_term_type(&TermType::BlankNode);
+    true
   }
 
   // helper for getting a related predicate
