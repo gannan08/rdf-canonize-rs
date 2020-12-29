@@ -266,7 +266,7 @@ impl<'b> URDNA2015<'b> {
       // subject
       let s: nquads::Subject;
       let mut subject: Option<&nquads::Subject> = None;
-      if Self::should_modify_first_degree_component(&quad.subject) {
+      if quad.subject.term_type == TermType::BlankNode {
         s = nquads::Subject {
           term_type: TermType::BlankNode,
           value: if quad.subject.value == id {
@@ -281,7 +281,7 @@ impl<'b> URDNA2015<'b> {
       // object
       let o: nquads::Object;
       let mut object: Option<&nquads::Object> = None;
-      if Self::should_modify_first_degree_component(&quad.object) {
+      if quad.object.term_type == TermType::BlankNode {
         o = nquads::Object {
           term_type: TermType::BlankNode,
           value: if quad.object.value == id {
@@ -298,7 +298,7 @@ impl<'b> URDNA2015<'b> {
       // graph
       let g: nquads::Graph;
       let mut graph: Option<&nquads::Graph> = None;
-      if Self::should_modify_first_degree_component(&quad.graph) {
+      if quad.graph.term_type == TermType::BlankNode {
         g = nquads::Graph {
           term_type: TermType::BlankNode,
           value: if quad.graph.value == id {
@@ -520,17 +520,6 @@ impl<'b> URDNA2015<'b> {
       hash: MessageDigest::digest(md),
       issuer,
     }
-  }
-
-  fn should_modify_first_degree_component<T>(copy: &T) -> bool
-  where
-    T: Term,
-  {
-    if *copy.get_term_type() != TermType::BlankNode {
-      return false;
-    }
-
-    true
   }
 
   // helper for getting a related predicate
