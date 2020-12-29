@@ -4,7 +4,6 @@ extern crate lazy_static;
 mod identifier_issuer;
 mod message_digest;
 mod permuter;
-mod permuter_old;
 mod urdna2015;
 
 pub mod nquads;
