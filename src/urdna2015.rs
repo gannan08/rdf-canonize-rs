@@ -419,7 +419,7 @@ impl<'b> URDNA2015<'b> {
 
           // 5.4.5.4) Set issuer copy to the identifier issuer in
           // result.
-          issuer_copy = result.issuer.clone();
+          issuer_copy = result.issuer;
 
           // 5.4.5.5) If chosen path is not empty and the length of path
           // is greater than or equal to the length of chosen path and
