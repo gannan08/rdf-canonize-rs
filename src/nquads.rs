@@ -1,8 +1,8 @@
 extern crate regex;
 
 use regex::Regex;
-use std::collections::HashMap;
 use std::borrow::Cow;
+use std::collections::HashMap;
 
 // define default capacities
 pub const DEFAULT_NQUAD_CAPACITY: usize = 256;
@@ -515,26 +515,37 @@ fn parse_graph(group: &regex::Captures) -> Graph {
   }
 }
 
-// optimized for the common case where no escaping is required
 fn escape_string<'a, S: Into<Cow<'a, str>>>(input: S) -> Cow<'a, str> {
   lazy_static! {
     static ref REGEX: Regex = Regex::new("[\\\\\n\r\"]").unwrap();
   }
   let input = input.into();
   let first = REGEX.find(&input);
-  if let Some(_first) = first {
-    // TODO: future optimization possible because the position of the first
-    // matched character is known, and therefore the replacement can operate
-    // on just the remaining part
-    let mut escaped = String::from(input);
-    escaped = escaped.replace("\\", "\\\\");
-    escaped = escaped.replace("\r", "\\r");
-    escaped = escaped.replace("\n", "\\n");
-    escaped = escaped.replace("\"", "\\\"");
-    return escaped.into()
-  } else {
-    input.into()
+  if let Some(first) = first {
+    // create a vector from the beginning of the string up to and not including the first occurence
+    // of a character that needs to be escaped
+    let mut output: Vec<u8> = Vec::from(input[0..first.start()].as_bytes());
+    // Max capacity for an escape string will be N * ESCAPE_CHARS_LEN, where N is the largest factor
+    // a single character can grow. We assert that N is 2 since we are only adding the '\'
+    // character. Therefore, the max capacity of the escaped string is 2 * ESCAPE_CHARS_LEN.
+    // TLDR: create a large enough buffer to prevent reallocations
+    output.reserve((input.len() - first.start()) * 2);
+    // iterate over remaining characters and escape
+    let rest = input[first.start()..].bytes();
+    for c in rest {
+      match c {
+        b'\\' => output.extend_from_slice(b"\\\\"),
+        b'\r' => output.extend_from_slice(b"\\r"),
+        b'\n' => output.extend_from_slice(b"\\n"),
+        b'\"' => output.extend_from_slice(b"\\\""),
+        _ => output.push(c),
+      }
+    }
+
+    return Cow::Owned(String::from_utf8(output).unwrap());
   }
+
+  input
 }
 
 fn unescape_string(escaped: &str) -> String {
