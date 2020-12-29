@@ -59,9 +59,9 @@ impl Iterator for Permuter<'_> {
     let mut k_is_none = true;
     let mut pos = 0;
     let length = current.len();
-    for (i, permutator_elment) in current.iter().enumerate() {
-      let element = permutator_elment.value;
-      let left = permutator_elment.direction;
+    for (i, permutator_element) in current.iter().enumerate() {
+      let element = permutator_element.value;
+      let left = permutator_element.direction;
       k_is_none = k.is_none();
       if (k_is_none || element > k.unwrap().value)
         && ((left && i > 0 && element > current[i - 1].value)
