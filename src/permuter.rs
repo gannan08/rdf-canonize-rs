@@ -82,10 +82,9 @@ impl Iterator for Permuter<'_> {
       current.swap(pos, swap);
 
       // reverse the direction of all elements larger than k
-      for permutator_elment in current.iter_mut() {
-        let element = &permutator_elment.value;
-        if element > &k.value {
-          permutator_elment.direction = !permutator_elment.direction;
+      for permutator_element in current.iter_mut() {
+        if permutator_element.value > k.value {
+          permutator_element.direction = !permutator_element.direction;
         }
       }
     }
