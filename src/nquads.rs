@@ -30,6 +30,13 @@ pub enum TermType {
   None,
 }
 
+pub enum Terms {
+  Subject,
+  Predicate,
+  Object,
+  Graph,
+}
+
 pub trait Term {
   fn new() -> Self;
   fn get_term_type(&self) -> &TermType;

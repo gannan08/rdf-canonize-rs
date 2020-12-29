@@ -1,9 +1,10 @@
 use crate::identifier_issuer::IdentifierIssuer;
 use crate::message_digest::MessageDigest;
 use crate::nquads;
-use crate::nquads::{Dataset, Quad, Term, TermType};
+use crate::nquads::{Dataset, Quad, Term, Terms, TermType};
 use crate::permuter::Permuter;
 
+use std::borrow::Cow;
 use lexical_sort::natural_lexical_cmp;
 use sha2::Sha256;
 use std::collections::HashMap;
@@ -175,12 +176,10 @@ impl<'b> URDNA2015<'b> {
       // 7.1) Create a copy, quad copy, of quad and replace any existing
       // blank node identifiers using the canonical identifiers
       // previously issued by canonical issuer.
-      let mut quad_copy = quad.clone();
-      Self::use_canonical_id(&mut quad_copy.subject, &mut self.canonical_issuer);
-      Self::use_canonical_id(&mut quad_copy.object, &mut self.canonical_issuer);
-      Self::use_canonical_id(&mut quad_copy.graph, &mut self.canonical_issuer);
+      let canonical_quad = Self::get_canonical_quad(quad, &mut self.canonical_issuer);
+
       // 7.2) Add quad copy to the normalized dataset.
-      normalized.push(nquads::serialize_quad(&quad_copy));
+      normalized.push(nquads::serialize_quad(&canonical_quad));
     }
 
     // sort normalized output
@@ -536,14 +535,38 @@ impl<'b> URDNA2015<'b> {
     }
   }
 
-  fn use_canonical_id<T>(copy: &mut T, issuer: &mut IdentifierIssuer)
-  where
-    T: Term,
-  {
-    if *copy.get_term_type() == TermType::BlankNode && !copy.get_value().starts_with(&issuer.prefix)
-    {
-      copy.set_value(&issuer.get_id(&copy.get_value()));
+  fn needs_canonical_id<T: Term>(term: &T, issuer_prefix: &String) -> bool {
+    *term.get_term_type() == TermType::BlankNode &&
+      !term.get_value().starts_with(issuer_prefix)
+  }
+
+  fn get_canonical_quad<'a>(quad: &'a Quad, issuer: &mut IdentifierIssuer) -> Cow<'a, Quad> {
+    let mut terms: Vec<Terms> = Vec::with_capacity(3);
+    if Self::needs_canonical_id(&quad.subject, &issuer.prefix) {
+      terms.push(Terms::Subject);
     }
+    if Self::needs_canonical_id(&quad.object, &issuer.prefix) {
+      terms.push(Terms::Object);
+    }
+    if Self::needs_canonical_id(&quad.graph, &issuer.prefix) {
+      terms.push(Terms::Graph);
+    }
+
+    // no changes necessary, return the original quad
+    if terms.is_empty() {
+      return Cow::Borrowed(quad);
+    }
+
+    let mut quad_copy = quad.clone();
+    for term in terms {
+      match term {
+        Terms::Subject => quad_copy.subject.set_value(&issuer.get_id(&quad_copy.subject.get_value())),
+        Terms::Object => quad_copy.object.set_value(&issuer.get_id(&quad_copy.object.get_value())),
+        Terms::Graph => quad_copy.graph.set_value(&issuer.get_id(&quad_copy.graph.get_value())),
+        _ => unreachable!()
+      }
+    }
+    Cow::Owned(quad_copy)
   }
 }
 
