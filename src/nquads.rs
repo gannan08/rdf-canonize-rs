@@ -21,7 +21,7 @@ const XSD_STRING: &str = "http://www.w3.org/2001/XMLSchema#string";
 // RDF constants
 const RDF_LANGSTRING: &str = "http://www.w3.org/1999/02/22-rdf-syntax-ns#langString";
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Copy, Clone, Debug, PartialEq)]
 pub enum TermType {
   BlankNode,
   NamedNode,
@@ -40,8 +40,8 @@ pub trait Term {
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct Subject {
-  term_type: TermType,
-  value: String,
+  pub term_type: TermType,
+  pub value: String,
 }
 
 impl Term for Subject {
@@ -57,7 +57,7 @@ impl Term for Subject {
   }
 
   fn set_term_type(&mut self, term_type: &TermType) {
-    self.term_type = term_type.clone();
+    self.term_type = *term_type;
   }
 
   fn get_value(&self) -> &str {
@@ -71,8 +71,8 @@ impl Term for Subject {
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct Predicate {
-  term_type: TermType,
-  value: String,
+  pub term_type: TermType,
+  pub value: String,
 }
 
 impl Term for Predicate {
@@ -88,7 +88,7 @@ impl Term for Predicate {
   }
 
   fn set_term_type(&mut self, term_type: &TermType) {
-    self.term_type = term_type.clone();
+    self.term_type = *term_type;
   }
 
   fn get_value(&self) -> &str {
@@ -102,10 +102,10 @@ impl Term for Predicate {
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct Object {
-  term_type: TermType,
-  value: String,
-  datatype: Option<String>,
-  language: Option<String>,
+  pub term_type: TermType,
+  pub value: String,
+  pub datatype: Option<String>,
+  pub language: Option<String>,
 }
 
 impl Term for Object {
@@ -123,7 +123,7 @@ impl Term for Object {
   }
 
   fn set_term_type(&mut self, term_type: &TermType) {
-    self.term_type = term_type.clone();
+    self.term_type = *term_type;
   }
 
   fn get_value(&self) -> &str {
@@ -155,8 +155,8 @@ impl Object {
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct Graph {
-  term_type: TermType,
-  value: String,
+  pub term_type: TermType,
+  pub value: String,
 }
 
 impl Term for Graph {
@@ -172,7 +172,7 @@ impl Term for Graph {
   }
 
   fn set_term_type(&mut self, term_type: &TermType) {
-    self.term_type = term_type.clone();
+    self.term_type = *term_type;
   }
 
   fn get_value(&self) -> &str {

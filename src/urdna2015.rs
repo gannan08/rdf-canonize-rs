@@ -175,12 +175,56 @@ impl<'b> URDNA2015<'b> {
       // 7.1) Create a copy, quad copy, of quad and replace any existing
       // blank node identifiers using the canonical identifiers
       // previously issued by canonical issuer.
-      let mut quad_copy = quad.clone();
-      Self::use_canonical_id(&mut quad_copy.subject, &mut self.canonical_issuer);
-      Self::use_canonical_id(&mut quad_copy.object, &mut self.canonical_issuer);
-      Self::use_canonical_id(&mut quad_copy.graph, &mut self.canonical_issuer);
+      let mut subject: Option<nquads::Subject> = None;
+      let mut object: Option<nquads::Object> = None;
+      let mut graph: Option<nquads::Graph> = None;
+
+      if Self::should_use_canonical_id(&quad.subject, &self.canonical_issuer) {
+        let s = nquads::Subject {
+          term_type: *quad.subject.get_term_type(),
+          value: self
+            .canonical_issuer
+            .get_existing_id(quad.subject.get_value())
+            .unwrap(),
+        };
+        subject = Some(s);
+      }
+      if Self::should_use_canonical_id(&quad.object, &self.canonical_issuer) {
+        let o = nquads::Object {
+          term_type: *quad.object.get_term_type(),
+          value: self
+            .canonical_issuer
+            .get_existing_id(quad.object.get_value())
+            .unwrap(),
+          datatype: quad.object.get_datatype(),
+          language: quad.object.get_language(),
+        };
+        object = Some(o);
+      }
+      if Self::should_use_canonical_id(&quad.graph, &self.canonical_issuer) {
+        let g = nquads::Graph {
+          term_type: *quad.graph.get_term_type(),
+          value: self
+            .canonical_issuer
+            .get_existing_id(quad.graph.get_value())
+            .unwrap(),
+        };
+        graph = Some(g);
+      }
+
       // 7.2) Add quad copy to the normalized dataset.
-      normalized.push(nquads::serialize_quad(&quad_copy));
+      if subject.is_none() && object.is_none() && graph.is_none() {
+        // use existing quad when there is no need to create a clone
+        normalized.push(nquads::serialize_quad(&quad));
+      } else {
+        let quad_copy = Quad {
+          subject: subject.or_else(|| Some(quad.subject.clone())).unwrap(),
+          predicate: quad.predicate.clone(),
+          object: object.or_else(|| Some(quad.object.clone())).unwrap(),
+          graph: graph.or_else(|| Some(quad.graph.clone())).unwrap(),
+        };
+        normalized.push(nquads::serialize_quad(&quad_copy));
+      }
     }
 
     // sort normalized output
@@ -536,14 +580,16 @@ impl<'b> URDNA2015<'b> {
     }
   }
 
-  fn use_canonical_id<T>(copy: &mut T, issuer: &mut IdentifierIssuer)
+  fn should_use_canonical_id<T>(copy: &T, issuer: &IdentifierIssuer) -> bool
   where
     T: Term,
   {
     if *copy.get_term_type() == TermType::BlankNode && !copy.get_value().starts_with(&issuer.prefix)
     {
-      copy.set_value(&issuer.get_id(&copy.get_value()));
+      return true;
     }
+
+    false
   }
 }
 
