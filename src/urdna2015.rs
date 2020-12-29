@@ -1,7 +1,7 @@
 use crate::identifier_issuer::IdentifierIssuer;
 use crate::message_digest::MessageDigest;
 use crate::nquads;
-use crate::nquads::{Dataset, Quad, Term, TermType};
+use crate::nquads::{Dataset, Quad, QuadSerialize, Term, TermType};
 use crate::permuter::Permuter;
 
 use lexical_sort::natural_lexical_cmp;
@@ -171,26 +171,26 @@ impl<'b> URDNA2015<'b> {
 
     // 7) For each quad, quad, in input dataset:
     let mut normalized = Vec::with_capacity(quads.len());
-    for quad in quads.iter() {
+    for quad in quads {
       // 7.1) Create a copy, quad copy, of quad and replace any existing
       // blank node identifiers using the canonical identifiers
       // previously issued by canonical issuer.
-      let mut subject: Option<nquads::Subject> = None;
-      let mut object: Option<nquads::Object> = None;
-      let mut graph: Option<nquads::Graph> = None;
-
+      let s: nquads::Subject;
+      let mut subject: Option<&nquads::Subject> = None;
       if Self::should_use_canonical_id(&quad.subject, &self.canonical_issuer) {
-        let s = nquads::Subject {
+        s = nquads::Subject {
           term_type: *quad.subject.get_term_type(),
           value: self
             .canonical_issuer
             .get_existing_id(quad.subject.get_value())
             .unwrap(),
         };
-        subject = Some(s);
+        subject = Some(&s);
       }
+      let o: nquads::Object;
+      let mut object: Option<&nquads::Object> = None;
       if Self::should_use_canonical_id(&quad.object, &self.canonical_issuer) {
-        let o = nquads::Object {
+        o = nquads::Object {
           term_type: *quad.object.get_term_type(),
           value: self
             .canonical_issuer
@@ -199,29 +199,31 @@ impl<'b> URDNA2015<'b> {
           datatype: quad.object.get_datatype(),
           language: quad.object.get_language(),
         };
-        object = Some(o);
+        object = Some(&o);
       }
+      let g: nquads::Graph;
+      let mut graph: Option<&nquads::Graph> = None;
       if Self::should_use_canonical_id(&quad.graph, &self.canonical_issuer) {
-        let g = nquads::Graph {
+        g = nquads::Graph {
           term_type: *quad.graph.get_term_type(),
           value: self
             .canonical_issuer
             .get_existing_id(quad.graph.get_value())
             .unwrap(),
         };
-        graph = Some(g);
+        graph = Some(&g);
       }
 
       // 7.2) Add quad copy to the normalized dataset.
       if subject.is_none() && object.is_none() && graph.is_none() {
         // use existing quad when there is no need to create a clone
-        normalized.push(nquads::serialize_quad(&quad));
+        normalized.push(nquads::serialize_quad(quad));
       } else {
-        let quad_copy = Quad {
-          subject: subject.or_else(|| Some(quad.subject.clone())).unwrap(),
-          predicate: quad.predicate.clone(),
-          object: object.or_else(|| Some(quad.object.clone())).unwrap(),
-          graph: graph.or_else(|| Some(quad.graph.clone())).unwrap(),
+        let quad_copy = nquads::QuadRef {
+          subject: subject.or(Some(&quad.subject)).unwrap(),
+          predicate: &quad.predicate,
+          object: object.or(Some(&quad.object)).unwrap(),
+          graph: graph.or(Some(&quad.graph)).unwrap(),
         };
         normalized.push(nquads::serialize_quad(&quad_copy));
       }
