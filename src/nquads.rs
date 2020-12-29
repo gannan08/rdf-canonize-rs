@@ -184,6 +184,39 @@ impl Term for Graph {
   }
 }
 
+pub trait QuadSerialize<'a> {
+  fn get_subject(&'a self) -> &'a Subject;
+  fn get_predicate(&'a self) -> &'a Predicate;
+  fn get_object(&'a self) -> &'a Object;
+  fn get_graph(&'a self) -> &'a Graph;
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct QuadRef<'a> {
+  pub subject: &'a Subject,
+  pub predicate: &'a Predicate,
+  pub object: &'a Object,
+  pub graph: &'a Graph,
+}
+
+impl QuadSerialize<'_> for QuadRef<'_> {
+  fn get_subject(&self) -> &Subject {
+    self.subject
+  }
+
+  fn get_predicate(&self) -> &Predicate {
+    self.predicate
+  }
+
+  fn get_object(&self) -> &Object {
+    self.object
+  }
+
+  fn get_graph(&self) -> &Graph {
+    self.graph
+  }
+}
+
 #[derive(Clone, Debug, PartialEq)]
 pub struct Quad {
   pub subject: Subject,
@@ -195,6 +228,24 @@ pub struct Quad {
 impl Quad {
   pub fn new() -> Quad {
     Self::default()
+  }
+}
+
+impl QuadSerialize<'_> for Quad {
+  fn get_subject(&self) -> &Subject {
+    &self.subject
+  }
+
+  fn get_predicate(&self) -> &Predicate {
+    &self.predicate
+  }
+
+  fn get_object(&self) -> &Object {
+    &self.object
+  }
+
+  fn get_graph(&self) -> &Graph {
+    &self.graph
   }
 }
 
@@ -245,11 +296,14 @@ impl Dataset {
   }
 }
 
-pub fn serialize_quad(quad: &Quad) -> String {
-  let s = &quad.subject;
-  let p = &quad.predicate;
-  let o = &quad.object;
-  let g = &quad.graph;
+pub fn serialize_quad<'a, T>(quad: &'a T) -> String
+where
+  T: QuadSerialize<'a>,
+{
+  let s = quad.get_subject();
+  let p = quad.get_predicate();
+  let o = quad.get_object();
+  let g = quad.get_graph();
 
   let mut nquad = String::with_capacity(DEFAULT_NQUAD_CAPACITY);
 
