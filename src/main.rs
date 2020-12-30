@@ -30,9 +30,6 @@ fn main() {
             }
         }
     }
-
-    println!();
-
 }
 
 // The output is wrapped in a Result to allow matching on errors
