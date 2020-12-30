@@ -5,7 +5,6 @@ use std::env;
 use std::fs::File;
 use std::io::{self, BufRead};
 use std::path::Path;
-use rdf_canonize::nquads::{Dataset};
 
 fn main() {
     let args: Vec<String> = env::args().collect();
@@ -15,17 +14,18 @@ fn main() {
     // println!("Filename {}", filename);
 
     let mut line_counter = 0;
-    let mut rdf_dataset = Dataset::new();
     if let Ok(lines) = read_lines(filename) {
+        let mut t = String::with_capacity(2050);
         for line in lines {
             if let Ok(l) = line {
                 line_counter += 1;
-                let q2 = rdf_canonize::nquads::parse_nquad(&l);
-                rdf_dataset.add(q2);
+                t.push_str(&l);
+                t.push('\n');
                 if line_counter % 20 == 0 {
-                    let serialized_nquads = rdf_canonize::canonize(&rdf_dataset, "URDNA2015").unwrap();
+                    let q2 = rdf_canonize::nquads::parse_nquads(&t);
+                    let serialized_nquads = rdf_canonize::canonize(&q2, "URDNA2015").unwrap();
                     print!("{}", serialized_nquads);
-                    rdf_dataset = Dataset::new();
+                    t = String::with_capacity(2050);
                 }
             }
         }
