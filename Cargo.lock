@@ -89,6 +89,18 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "624a8340c38c1b80fd549087862da4ba43e08858af025b236e509b6649fc13d5"
 
 [[package]]
+name = "oxilangtag"
+version = "0.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "91b91e9ce02b749ae761eaa3686f24bc97d5b75ca9a17c774f5de4e5d788d451"
+
+[[package]]
+name = "oxiri"
+version = "0.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c8e54fb37480ffa01a9af93f991ba229b3091f2e6ac84c8f6df2c509356cc473"
+
+[[package]]
 name = "rdf-canonize-rs"
 version = "0.1.0"
 dependencies = [
@@ -96,6 +108,8 @@ dependencies = [
  "lazy_static",
  "lexical-sort",
  "regex",
+ "rio_api",
+ "rio_turtle",
  "sha2",
 ]
 
@@ -116,6 +130,23 @@ name = "regex-syntax"
 version = "0.6.21"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3b181ba2dcf07aaccad5448e8ead58db5b742cf85dfe035e2227f137a539a189"
+
+[[package]]
+name = "rio_api"
+version = "0.5.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5f3057bb5d32a656ed84e7680b0ff792a0d0a9f528749930bfd8701625f7b387"
+
+[[package]]
+name = "rio_turtle"
+version = "0.5.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "fbeb18a70b16b9497be10e5562b059dac70298aa8db061dcba2b4d6b6c5785c8"
+dependencies = [
+ "oxilangtag",
+ "oxiri",
+ "rio_api",
+]
 
 [[package]]
 name = "sha2"
