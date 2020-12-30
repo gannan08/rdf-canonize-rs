@@ -396,6 +396,7 @@ pub fn parse_nquads_ol(dataset: &str) -> Dataset {
   rdf_dataset
 }
 
+#[allow(unused_must_use)]
 pub fn parse_nquads(dataset: &str) -> Dataset {
   let mut rdf_dataset = Dataset::new();
 
@@ -410,7 +411,7 @@ pub fn parse_nquads(dataset: &str) -> Dataset {
     };
     let object = object_data(&rio_api::model::Term::from(t.object));
 
-    let mut graph;
+    let graph;
     if let Some(graph_name) = t.graph_name {
       graph = graph_data(&rio_api::model::Term::from(graph_name));
     } else {
@@ -481,7 +482,6 @@ fn object_data(rio_term: &rio_api::model::Term) -> Object {
       language: None,
       datatype: None,
     },
-    _ => panic!(),
   }
 }
 
