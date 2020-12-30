@@ -448,7 +448,6 @@ fn graph_data(rio_term: &rio_api::model::Term) -> Graph {
 }
 
 fn object_data(rio_term: &rio_api::model::Term) -> Object {
-  println!("{:?}", rio_term);
   match rio_term {
     rio_api::model::Term::Literal(literal) => match literal {
       rio_api::model::Literal::Simple { value } => Object {
