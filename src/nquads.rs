@@ -4,6 +4,9 @@ use regex::Regex;
 use std::borrow::Cow;
 use std::collections::HashMap;
 
+use rio_api::parser::QuadsParser;
+use rio_turtle::{NQuadsParser, TurtleError};
+
 // define default capacities
 pub const DEFAULT_NQUAD_CAPACITY: usize = 256;
 pub const DEFAULT_TERM_CAPACITY: usize = 64;
@@ -378,17 +381,116 @@ where
   nquad.push('\n');
   nquad
 }
-pub fn parse_nquads(dataset: &str) -> Dataset {
+
+pub fn parse_nquads_ol(dataset: &str) -> Dataset {
   let lines = dataset.lines();
 
   let mut rdf_dataset = Dataset::new();
 
   for line in lines {
     let quad = parse_nquad(&line);
+    println!("{:?}", quad.predicate);
     rdf_dataset.add(quad);
   }
 
   rdf_dataset
+}
+
+pub fn parse_nquads(dataset: &str) -> Dataset {
+  let mut rdf_dataset = Dataset::new();
+
+  NQuadsParser::new(dataset.as_ref()).parse_all(&mut |t| {
+    let subject = Subject {
+      term_type: term_type(&rio_api::model::Term::from(t.subject)),
+      value: t.subject.to_string(),
+    };
+    let predicate = Predicate {
+      term_type: TermType::NamedNode,
+      value: t.predicate.iri.to_string(),
+    };
+    let object = object_data(&rio_api::model::Term::from(t.object));
+
+    let mut graph;
+    if let Some(graph_name) = t.graph_name {
+      graph = graph_data(&rio_api::model::Term::from(graph_name));
+    } else {
+      graph = Graph {
+        term_type: TermType::DefaultGraph,
+        value: String::from(""),
+      };
+    }
+    let quad = Quad {
+      subject,
+      predicate,
+      object,
+      graph,
+    };
+    rdf_dataset.add(quad);
+
+    Ok(()) as Result<(), TurtleError>
+  });
+
+  rdf_dataset
+}
+
+fn graph_data(rio_term: &rio_api::model::Term) -> Graph {
+  match rio_term {
+    rio_api::model::Term::NamedNode(node) => Graph {
+      term_type: TermType::NamedNode,
+      value: node.iri.to_string(),
+    },
+    rio_api::model::Term::BlankNode(node) => Graph {
+      term_type: TermType::BlankNode,
+      value: node.to_string(),
+    },
+    _ => panic!(),
+  }
+}
+
+fn object_data(rio_term: &rio_api::model::Term) -> Object {
+  match rio_term {
+    rio_api::model::Term::Literal(literal) => match literal {
+      rio_api::model::Literal::Simple { value } => Object {
+        term_type: TermType::Literal,
+        value: value.to_string(),
+        language: None,
+        datatype: Some(XSD_STRING.to_string()),
+      },
+      rio_api::model::Literal::LanguageTaggedString { value, language } => Object {
+        term_type: TermType::Literal,
+        value: value.to_string(),
+        language: Some(language.to_string()),
+        datatype: Some(RDF_LANGSTRING.to_string()),
+      },
+      rio_api::model::Literal::Typed { value, datatype } => Object {
+        term_type: TermType::Literal,
+        value: value.to_string(),
+        language: None,
+        datatype: Some(datatype.to_string()),
+      },
+    },
+    rio_api::model::Term::BlankNode(node) => Object {
+      term_type: TermType::BlankNode,
+      value: node.to_string(),
+      language: None,
+      datatype: None,
+    },
+    rio_api::model::Term::NamedNode(node) => Object {
+      term_type: TermType::NamedNode,
+      value: node.iri.to_string(),
+      language: None,
+      datatype: None,
+    },
+    _ => panic!(),
+  }
+}
+
+fn term_type(rio_term: &rio_api::model::Term) -> TermType {
+  match rio_term {
+    rio_api::model::Term::NamedNode(_) => TermType::NamedNode,
+    rio_api::model::Term::BlankNode(_) => TermType::BlankNode,
+    rio_api::model::Term::Literal(_) => TermType::Literal,
+  }
 }
 
 lazy_static! {
