@@ -325,7 +325,7 @@ impl<'b> URDNA2015<'b> {
     }
 
     // 4) Sort nquads in lexicographical order.
-    serialized_quads.sort_by(|a, b| natural_lexical_cmp(&a, &b));
+    serialized_quads.sort_unstable();
 
     // 5) Return the hash that results from passing the sorted, joined nquads
     // through the hash algorithm.
