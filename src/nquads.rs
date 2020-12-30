@@ -305,55 +305,55 @@ where
   let o = quad.get_object();
   let g = quad.get_graph();
 
-  let mut nquad = String::with_capacity(DEFAULT_NQUAD_CAPACITY);
+  let mut nquad: Vec<u8> = Vec::with_capacity(DEFAULT_NQUAD_CAPACITY);
 
   // subject can only be NamedNode or BlankNode
   if s.term_type == TermType::NamedNode {
     // append "<subject.value>"
-    nquad.push('<');
-    nquad.push_str(&s.value);
-    nquad.push('>');
+    nquad.push(b'<');
+    nquad.extend_from_slice(s.value.as_bytes());
+    nquad.push(b'>');
   } else {
     // append "subject.value"
-    nquad.push_str(&s.value);
+    nquad.extend_from_slice(s.value.as_bytes());
   }
 
   // predicate can only be NamedNode
   // append " <predicate.value> "
-  nquad.push(' ');
-  nquad.push('<');
-  nquad.push_str(&p.value);
-  nquad.push('>');
-  nquad.push(' ');
+  nquad.push(b' ');
+  nquad.push(b'<');
+  nquad.extend_from_slice(p.value.as_bytes());
+  nquad.push(b'>');
+  nquad.push(b' ');
 
   // object is NamedNode, BlankNode, or Literal
   if o.term_type == TermType::NamedNode {
     // append "<object.value>"
-    nquad.push('<');
-    nquad.push_str(&o.value);
-    nquad.push('>');
+    nquad.push(b'<');
+    nquad.extend_from_slice(o.value.as_bytes());
+    nquad.push(b'>');
   } else if o.term_type == TermType::BlankNode {
     // append "object.value"
-    nquad.push_str(&o.value)
+    nquad.extend_from_slice(o.value.as_bytes())
   } else {
     // append "\"escape(object.value)\""
-    nquad.push('\"');
-    nquad.push_str(&escape_string(&o.value));
-    nquad.push('\"');
+    nquad.push(b'\"');
+    nquad.extend_from_slice(&escape_string(&o.value));
+    nquad.push(b'\"');
     if let Some(datatype) = &o.datatype {
       if datatype == RDF_LANGSTRING {
         if let Some(language) = &o.language {
           // append "@language"
-          nquad.push('@');
-          nquad.push_str(&language);
+          nquad.push(b'@');
+          nquad.extend_from_slice(language.as_bytes());
         }
       } else if datatype != XSD_STRING {
         // append "^^<datatype>"
-        nquad.push('^');
-        nquad.push('^');
-        nquad.push('<');
-        nquad.push_str(&datatype);
-        nquad.push('>');
+        nquad.push(b'^');
+        nquad.push(b'^');
+        nquad.push(b'<');
+        nquad.extend_from_slice(datatype.as_bytes());
+        nquad.push(b'>');
       }
     }
   }
@@ -362,21 +362,22 @@ where
   // does not add to `nquad`)
   if g.term_type == TermType::NamedNode {
     // append " <graph.value>"
-    nquad.push(' ');
-    nquad.push('<');
-    nquad.push_str(&g.value);
-    nquad.push('>');
+    nquad.push(b' ');
+    nquad.push(b'<');
+    nquad.extend_from_slice(g.value.as_bytes());
+    nquad.push(b'>');
   } else if g.term_type == TermType::BlankNode {
     // append " graph.value"
-    nquad.push(' ');
-    nquad.push_str(&g.value);
+    nquad.push(b' ');
+    nquad.extend_from_slice(g.value.as_bytes());
   }
 
   // append " .\n"
-  nquad.push(' ');
-  nquad.push('.');
-  nquad.push('\n');
-  nquad
+  nquad.push(b' ');
+  nquad.push(b'.');
+  nquad.push(b'\n');
+
+  String::from_utf8(nquad).unwrap()
 }
 pub fn parse_nquads(dataset: &str) -> Dataset {
   let lines = dataset.lines();
@@ -569,7 +570,7 @@ fn parse_graph(group: &regex::Captures) -> Graph {
   }
 }
 
-fn escape_string<'a, S: Into<Cow<'a, str>>>(input: S) -> Cow<'a, str> {
+fn escape_string<'a, S: Into<Cow<'a, str>>>(input: S) -> Cow<'a, [u8]> {
   lazy_static! {
     static ref REGEX: Regex = Regex::new("[\\\\\n\r\"]").unwrap();
   }
@@ -596,10 +597,10 @@ fn escape_string<'a, S: Into<Cow<'a, str>>>(input: S) -> Cow<'a, str> {
       }
     }
 
-    return Cow::Owned(String::from_utf8(output).unwrap());
+    return Cow::Owned(output);
   }
 
-  input
+  Cow::Owned(Vec::from(input.as_bytes()))
 }
 
 fn unescape_string(escaped: &str) -> String {
