@@ -187,7 +187,7 @@ impl Term for Graph {
   }
 }
 
-pub trait QuadSerialize<'a> {
+pub trait BaseQuad<'a> {
   fn get_subject(&'a self) -> &'a Subject;
   fn get_predicate(&'a self) -> &'a Predicate;
   fn get_object(&'a self) -> &'a Object;
@@ -202,7 +202,7 @@ pub struct QuadRef<'a> {
   pub graph: &'a Graph,
 }
 
-impl QuadSerialize<'_> for QuadRef<'_> {
+impl BaseQuad<'_> for QuadRef<'_> {
   fn get_subject(&self) -> &Subject {
     self.subject
   }
@@ -234,7 +234,7 @@ impl Quad {
   }
 }
 
-impl QuadSerialize<'_> for Quad {
+impl BaseQuad<'_> for Quad {
   fn get_subject(&self) -> &Subject {
     &self.subject
   }
@@ -252,6 +252,39 @@ impl QuadSerialize<'_> for Quad {
   }
 }
 
+impl BaseQuad<'_> for rio_api::model::Quad<'_> {
+  fn get_subject(&self) -> &Subject {
+    &Subject {
+      term_type: term_type(&rio_api::model::Term::from(self.subject)),
+      value: self.subject.to_string(),
+    }
+  }
+
+  fn get_predicate(&self) -> &Predicate {
+    &Predicate {
+      term_type: TermType::NamedNode,
+      value: self.predicate.iri.to_string(),
+    }
+  }
+
+  fn get_object(&self) -> &Object {
+    &object_data(&self.object)
+  }
+
+  fn get_graph(&self) -> &Graph {
+    let graph;
+    if let Some(graph_name) = self.graph_name {
+      graph = graph_data(&rio_api::model::Term::from(graph_name));
+    } else {
+      graph = Graph {
+        term_type: TermType::DefaultGraph,
+        value: String::from(""),
+      };
+    }
+    &graph
+  }
+}
+
 impl Default for Quad {
   fn default() -> Quad {
     Quad {
@@ -263,24 +296,31 @@ impl Default for Quad {
   }
 }
 
-pub type QuadSet = Vec<Quad>;
+pub type QuadSet<'a, T: BaseQuad<'a>> = Vec<T>;
 
-#[derive(Clone, Debug, Default, PartialEq)]
-pub struct Dataset {
-  pub quads: QuadSet,
+#[derive(Clone, Debug, PartialEq)]
+pub struct Dataset<'a, T> {
+  pub quads: QuadSet<'a, T>,
   graph_map: HashMap<String, Vec<usize>>,
 }
 
-impl Dataset {
-  pub fn new() -> Dataset {
+impl<'a, T: BaseQuad<'a>> Dataset<'_, T> {
+  pub fn new() -> Dataset<'a, T> {
     Dataset {
       quads: Vec::new(),
       graph_map: HashMap::new(),
     }
   }
 
-  pub fn add(&mut self, quad: Quad) -> bool {
-    let graph = quad.graph.clone();
+  pub fn rnew(quads: QuadSet<'a, T>) -> Dataset<'a, T> {
+    Dataset {
+      quads,
+      graph_map: HashMap::new(),
+    }
+  }
+
+  pub fn add(&'a mut self, quad: T) -> bool {
+    let graph = quad.get_graph();
     let graph_name = graph.value;
     match self.graph_map.get_mut(&graph_name) {
       Some(quad_ptrs) => {
@@ -301,7 +341,7 @@ impl Dataset {
 
 pub fn serialize_quad<'a, T>(quad: &'a T) -> String
 where
-  T: QuadSerialize<'a>,
+  T: BaseQuad<'a>,
 {
   let s = quad.get_subject();
   let p = quad.get_predicate();
@@ -382,7 +422,7 @@ where
   nquad
 }
 
-pub fn parse_nquads_ol(dataset: &str) -> Dataset {
+pub fn parse_nquads_ol(dataset: &str) -> Dataset<Quad> {
   let lines = dataset.lines();
 
   let mut rdf_dataset = Dataset::new();
@@ -396,41 +436,16 @@ pub fn parse_nquads_ol(dataset: &str) -> Dataset {
   rdf_dataset
 }
 
-pub fn parse_nquads(dataset: &str) -> Dataset {
-  let mut rdf_dataset = Dataset::new();
-
+#[allow(unused_must_use)]
+pub fn parse_nquads<'a>(dataset: &'a str) -> Dataset<'a, rio_api::model::Quad<'a>> {
+  let qs: QuadSet<rio_api::model::Quad> = QuadSet::new();
   NQuadsParser::new(dataset.as_ref()).parse_all(&mut |t| {
-    let subject = Subject {
-      term_type: term_type(&rio_api::model::Term::from(t.subject)),
-      value: t.subject.to_string(),
-    };
-    let predicate = Predicate {
-      term_type: TermType::NamedNode,
-      value: t.predicate.iri.to_string(),
-    };
-    let object = object_data(&rio_api::model::Term::from(t.object));
-
-    let mut graph;
-    if let Some(graph_name) = t.graph_name {
-      graph = graph_data(&rio_api::model::Term::from(graph_name));
-    } else {
-      graph = Graph {
-        term_type: TermType::DefaultGraph,
-        value: String::from(""),
-      };
-    }
-    let quad = Quad {
-      subject,
-      predicate,
-      object,
-      graph,
-    };
-    rdf_dataset.add(quad);
+    qs.push(t);
 
     Ok(()) as Result<(), TurtleError>
   });
 
-  rdf_dataset
+  Dataset::rnew(qs)
 }
 
 fn graph_data(rio_term: &rio_api::model::Term) -> Graph {
