@@ -31,7 +31,7 @@ struct HashNDegreeResult {
 
 #[derive(Clone, Debug, PartialEq)]
 struct BlankNodeInfo<'a> {
-  pub quads: Vec<&'a Quad>,
+  pub quads: Vec<&'a Quad<'a>>,
   hash: Option<Hash>,
 }
 
@@ -179,13 +179,15 @@ impl<'b> URDNA2015<'b> {
       // subject
       let s: nquads::Subject;
       let mut subject: Option<&nquads::Subject> = None;
+      let subject_id;
       if Self::should_use_canonical_id(&quad.subject, &self.canonical_issuer) {
+        subject_id = self
+          .canonical_issuer
+          .get_existing_id(&quad.subject.value)
+          .unwrap();
         s = nquads::Subject {
           term_type: quad.subject.term_type,
-          value: self
-            .canonical_issuer
-            .get_existing_id(&quad.subject.value)
-            .unwrap(),
+          value: &subject_id,
         };
         subject = Some(&s);
       }
@@ -270,9 +272,9 @@ impl<'b> URDNA2015<'b> {
         s = nquads::Subject {
           term_type: TermType::BlankNode,
           value: if quad.subject.value == id {
-            "_:a".to_string()
+            "_:a"
           } else {
-            "_:z".to_string()
+            "_:z"
           },
         };
         subject = Some(&s);

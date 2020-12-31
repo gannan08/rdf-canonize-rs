@@ -6,6 +6,7 @@ use std::collections::HashMap;
 
 use rio_api::parser::QuadsParser;
 use rio_turtle::{NQuadsParser, TurtleError};
+use rio_api::model::{NamedOrBlankNode};
 
 // define default capacities
 pub const DEFAULT_NQUAD_CAPACITY: usize = 256;
@@ -42,16 +43,16 @@ pub trait Term {
 }
 
 #[derive(Clone, Debug, PartialEq)]
-pub struct Subject {
+pub struct Subject<'a> {
   pub term_type: TermType,
-  pub value: String,
+  pub value: &'a str,
 }
 
-impl Term for Subject {
-  fn new() -> Subject {
+impl<'a> Term for Subject<'a> {
+  fn new() -> Subject<'a> {
     Subject {
       term_type: TermType::None,
-      value: String::from(""),
+      value: "",
     }
   }
 
@@ -68,7 +69,8 @@ impl Term for Subject {
   }
 
   fn set_value(&mut self, value: &str) {
-    self.value = value.to_string();
+    panic!("SUBJECT SET_VALUE BRIDGE OUT!");
+    // self.value = value;
   }
 }
 
@@ -196,7 +198,7 @@ pub trait QuadSerialize<'a> {
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct QuadRef<'a> {
-  pub subject: &'a Subject,
+  pub subject: &'a Subject<'a>,
   pub predicate: &'a Predicate,
   pub object: &'a Object,
   pub graph: &'a Graph,
@@ -221,20 +223,20 @@ impl QuadSerialize<'_> for QuadRef<'_> {
 }
 
 #[derive(Clone, Debug, PartialEq)]
-pub struct Quad {
-  pub subject: Subject,
+pub struct Quad<'a> {
+  pub subject: Subject<'a>,
   pub predicate: Predicate,
   pub object: Object,
   pub graph: Graph,
 }
 
-impl Quad {
-  pub fn new() -> Quad {
+impl<'a> Quad<'a> {
+  pub fn new() -> Quad<'a> {
     Self::default()
   }
 }
 
-impl QuadSerialize<'_> for Quad {
+impl QuadSerialize<'_> for Quad<'_> {
   fn get_subject(&self) -> &Subject {
     &self.subject
   }
@@ -252,8 +254,8 @@ impl QuadSerialize<'_> for Quad {
   }
 }
 
-impl Default for Quad {
-  fn default() -> Quad {
+impl Default for Quad<'_> {
+  fn default() -> Quad<'static> {
     Quad {
       subject: Subject::new(),
       predicate: Predicate::new(),
@@ -263,23 +265,23 @@ impl Default for Quad {
   }
 }
 
-pub type QuadSet = Vec<Quad>;
+pub type QuadSet<'a> = Vec<Quad<'a>>;
 
 #[derive(Clone, Debug, Default, PartialEq)]
-pub struct Dataset {
-  pub quads: QuadSet,
+pub struct Dataset<'a> {
+  pub quads: QuadSet<'a>,
   graph_map: HashMap<String, Vec<usize>>,
 }
 
-impl Dataset {
-  pub fn new() -> Dataset {
+impl<'a> Dataset<'a> {
+  pub fn new() -> Dataset<'a> {
     Dataset {
       quads: Vec::new(),
       graph_map: HashMap::new(),
     }
   }
 
-  pub fn add(&mut self, quad: Quad) -> bool {
+  pub fn add(&mut self, quad: Quad<'a>) -> bool {
     let graph = quad.graph.clone();
     let graph_name = graph.value;
     match self.graph_map.get_mut(&graph_name) {
@@ -400,10 +402,14 @@ pub fn parse_nquads_ol(dataset: &str) -> Dataset {
 pub fn parse_nquads(dataset: &str) -> Dataset {
   let mut rdf_dataset = Dataset::new();
 
-  NQuadsParser::new(dataset.as_ref()).parse_all(&mut |t| {
+  NQuadsParser::new(dataset.as_ref()).parse_all(& mut |t| {
+    let id = match t.subject {
+      NamedOrBlankNode::NamedNode(node) => node.iri,
+      NamedOrBlankNode::BlankNode(node) => node.id,
+    };
     let subject = Subject {
       term_type: term_type(&rio_api::model::Term::from(t.subject)),
-      value: t.subject.to_string(),
+      value: id,
     };
     let predicate = Predicate {
       term_type: TermType::NamedNode,
@@ -563,7 +569,9 @@ lazy_static! {
 pub fn parse_nquad(serialized_triple: &str) -> Quad {
   let group = QUAD_REGEX.captures(serialized_triple).unwrap();
 
-  let subject = parse_subject(&group);
+  // FIXME:
+  // let subject = parse_subject(&group);
+  let subject = Subject::new();
   let predicate = parse_predicate(&group);
   let object = parse_object(&group);
   let graph = parse_graph(&group);
@@ -576,20 +584,20 @@ pub fn parse_nquad(serialized_triple: &str) -> Quad {
   }
 }
 
-fn parse_subject(group: &regex::Captures) -> Subject {
-  let subject = match group.get(1) {
-    Some(value) => Subject {
-      term_type: TermType::NamedNode,
-      value: String::from(value.as_str()),
-    },
-    None => Subject {
-      term_type: TermType::BlankNode,
-      value: String::from(group.get(2).unwrap().as_str()),
-    },
-  };
+// fn parse_subject(group: &regex::Captures) -> Subject {
+//   let subject = match group.get(1) {
+//     Some(value) => Subject {
+//       term_type: TermType::NamedNode,
+//       value: String::from(value.as_str()),
+//     },
+//     None => Subject {
+//       term_type: TermType::BlankNode,
+//       value: String::from(group.get(2).unwrap().as_str()),
+//     },
+//   };
 
-  subject
-}
+//   subject
+// }
 
 fn parse_predicate(group: &regex::Captures) -> Predicate {
   let value = group.get(3).unwrap();
@@ -731,11 +739,11 @@ mod tests {
   fn subject_equals() {
     let subject_a = Subject {
       term_type: TermType::NamedNode,
-      value: String::from("foobar"),
+      value: "foobar",
     };
     let subject_b = Subject {
       term_type: TermType::NamedNode,
-      value: String::from("foobar"),
+      value: "foobar",
     };
     assert_eq!(subject_a, subject_b);
   }
@@ -744,11 +752,11 @@ mod tests {
   fn subject_not_equals() {
     let subject_a = Subject {
       term_type: TermType::NamedNode,
-      value: String::from("ganesh"),
+      value: "ganesh",
     };
     let subject_b = Subject {
       term_type: TermType::BlankNode,
-      value: String::from("ganesh"),
+      value: "ganesh",
     };
     assert_ne!(subject_a, subject_b);
   }
@@ -843,7 +851,7 @@ mod tests {
   fn quad_equals() {
     let subject = Subject {
       term_type: TermType::NamedNode,
-      value: String::from("foobar"),
+      value: "foobar",
     };
     let predicate = Predicate {
       term_type: TermType::NamedNode,
@@ -879,7 +887,7 @@ mod tests {
   fn quad_not_equals() {
     let subject = Subject {
       term_type: TermType::NamedNode,
-      value: String::from("foobar"),
+      value: "foobar",
     };
     let predicate = Predicate {
       term_type: TermType::NamedNode,
