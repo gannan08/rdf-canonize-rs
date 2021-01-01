@@ -79,7 +79,7 @@ pub struct Predicate {
   pub value: String,
 }
 
-impl Term for Predicate {
+impl<'a> Term<'a> for Predicate {
   fn new() -> Predicate {
     Predicate {
       term_type: TermType::None,
@@ -112,7 +112,7 @@ pub struct Object {
   pub language: Option<String>,
 }
 
-impl Term for Object {
+impl<'a> Term<'a> for Object {
   fn new() -> Object {
     Object {
       term_type: TermType::None,
@@ -163,7 +163,7 @@ pub struct Graph {
   pub value: String,
 }
 
-impl Term for Graph {
+impl<'a> Term<'a> for Graph {
   fn new() -> Graph {
     Graph {
       term_type: TermType::None,

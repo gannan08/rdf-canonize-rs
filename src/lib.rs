@@ -8,7 +8,7 @@ mod urdna2015;
 
 pub mod nquads;
 
-pub fn canonize(dataset: &nquads::Dataset, algorithm: &str) -> Option<String> {
+pub fn canonize(dataset: &nquads::Dataset<'static>, algorithm: &str) -> Option<String> {
   match algorithm {
     "URDNA2015" => Some(urdna2015::URDNA2015::new().main(&dataset)),
     _ => None,

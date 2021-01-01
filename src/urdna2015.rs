@@ -54,7 +54,7 @@ impl<'b> URDNA2015<'b> {
   }
 
   // 4.4) Normalization Algorithm
-  pub fn main(&mut self, dataset: &'b Dataset) -> String {
+  pub fn main(&mut self, dataset: &'b Dataset<'static>) -> String {
     let quads = &dataset.quads;
     // 1) Create the normalization state.
     // 2) For every quad in input dataset:
@@ -582,7 +582,7 @@ impl<'b> URDNA2015<'b> {
 
   fn add_blank_node_quad_info<'a, T>(&'a mut self, quad: &'b Quad, component: &T)
   where
-    T: Term,
+    T: Term<'a>,
   {
     if *component.get_term_type() != TermType::BlankNode {
       return;
@@ -608,7 +608,7 @@ impl<'b> URDNA2015<'b> {
     issuer: &mut IdentifierIssuer,
     hash_to_related: &'a mut HashBlankNodeMap,
   ) where
-    T: Term,
+    T: Term<'a>,
   {
     let related = component.get_value();
     if !(*component.get_term_type() == TermType::BlankNode && related != id) {
@@ -631,9 +631,9 @@ impl<'b> URDNA2015<'b> {
     }
   }
 
-  fn should_use_canonical_id<T>(copy: &T, issuer: &IdentifierIssuer) -> bool
+  fn should_use_canonical_id<'a, T>(copy: &T, issuer: &IdentifierIssuer) -> bool
   where
-    T: Term,
+    T: Term<'a>,
   {
     if *copy.get_term_type() == TermType::BlankNode && !copy.get_value().starts_with(&issuer.prefix)
     {
