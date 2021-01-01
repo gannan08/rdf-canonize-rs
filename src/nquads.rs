@@ -34,12 +34,12 @@ pub enum TermType {
   None,
 }
 
-pub trait Term {
+pub trait Term<'a> {
   fn new() -> Self;
   fn get_term_type(&self) -> &TermType;
   fn set_term_type(&mut self, term_type: &TermType);
   fn get_value(&self) -> &str;
-  fn set_value(&mut self, value: &str);
+  fn set_value(&mut self, value: &'a str);
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -48,7 +48,7 @@ pub struct Subject<'a> {
   pub value: &'a str,
 }
 
-impl<'a> Term for Subject<'a> {
+impl<'a> Term<'a> for Subject<'a> {
   fn new() -> Subject<'a> {
     Subject {
       term_type: TermType::None,
@@ -68,9 +68,8 @@ impl<'a> Term for Subject<'a> {
     &self.value
   }
 
-  fn set_value(&mut self, _value: &str) {
-    panic!("subject set_value bridge out!");
-    // self.value = value;
+  fn set_value(&mut self, value: &'a str) {
+    self.value = value;
   }
 }
 
@@ -398,26 +397,56 @@ where
 //   rdf_dataset
 // }
 
-pub fn parse_nquads<'a>(dataset: &'a str, groups: &'a mut Vec<&regex::Captures<'a>>) -> Dataset<'a> {
-  let lines = dataset.lines();
-
+pub fn parse_nquads(dataset: &str) -> Dataset {
   let mut rdf_dataset = Dataset::new();
 
-  for line in lines.into_iter() {
-    let idx = match QUAD_REGEX.captures(line) {
-      Some(group) => {
-        groups.push(group);
-        groups.len() - 1
-      },
-      None => panic!()
+  for line in dataset.lines() {
+    for group in QUAD_REGEX.captures(line) {
+      let subject = match group.get(1) {
+        Some(value) => Subject {
+          term_type: TermType::NamedNode,
+          value: value.as_str(),
+        },
+        None => Subject {
+          term_type: TermType::BlankNode,
+          value: group.get(2).unwrap().as_str(),
+        }
+      };
+      let predicate = parse_predicate(&group);
+      let object = parse_object(&group);
+      let graph = parse_graph(&group);
+      rdf_dataset.add(Quad {
+        subject,
+        predicate,
+        object,
+        graph,
+      });
     };
-    let group = groups[idx];
-    let quad = parse_nquad(&group);
-    rdf_dataset.add(quad);
   }
 
   rdf_dataset
 }
+
+// pub fn parse_nquads_5<'a>(dataset: &'a str, groups: &'a mut Vec<&regex::Captures<'a>>) -> Dataset<'a> {
+//   let lines = dataset.lines();
+
+//   let mut rdf_dataset = Dataset::new();
+
+//   for line in lines.into_iter() {
+//     let idx = match QUAD_REGEX.captures(line) {
+//       Some(group) => {
+//         groups.push(group);
+//         groups.len() - 1
+//       },
+//       None => panic!()
+//     };
+//     let group = groups[idx];
+//     let quad = parse_nquad(&group);
+//     rdf_dataset.add(quad);
+//   }
+
+//   rdf_dataset
+// }
 
 #[allow(unused_must_use)]
 // pub fn parse_nquads_rio(dataset: &str) -> Dataset {
