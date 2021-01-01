@@ -54,7 +54,7 @@ impl<'b> URDNA2015<'b> {
   }
 
   // 4.4) Normalization Algorithm
-  pub fn main(&mut self, dataset: &'b Dataset<'static>) -> String {
+  pub fn main(&mut self, dataset: &'b Dataset) -> String {
     let quads = &dataset.quads;
     // 1) Create the normalization state.
     // 2) For every quad in input dataset:
