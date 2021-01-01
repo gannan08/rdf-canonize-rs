@@ -27,7 +27,7 @@ impl IdentifierIssuer {
   pub fn get_id(&mut self, old: &str) -> String {
     // return existing old identifier
     if let Some(existing) = self.get_existing_id(old) {
-      return existing;
+      return existing.to_string();
     }
 
     // get next identifier
@@ -43,10 +43,10 @@ impl IdentifierIssuer {
     identifier
   }
 
-  pub fn get_existing_id(&self, old: &str) -> Option<String> {
+  pub fn get_existing_id(&self, old: &str) -> Option<&str> {
     // return existing old identifier
     if let Some(existing) = self.existing.get(old) {
-      return Some(existing.to_string());
+      return Some(existing);
     }
 
     None

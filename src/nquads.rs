@@ -74,16 +74,16 @@ impl<'a> Term<'a> for Subject<'a> {
 }
 
 #[derive(Clone, Debug, PartialEq)]
-pub struct Predicate {
+pub struct Predicate<'a> {
   pub term_type: TermType,
-  pub value: String,
+  pub value: &'a str,
 }
 
-impl<'a> Term<'a> for Predicate {
-  fn new() -> Predicate {
+impl<'a> Term<'a> for Predicate<'a> {
+  fn new() -> Predicate<'a> {
     Predicate {
       term_type: TermType::None,
-      value: String::from(""),
+      value: "",
     }
   }
 
@@ -99,24 +99,24 @@ impl<'a> Term<'a> for Predicate {
     &self.value
   }
 
-  fn set_value(&mut self, value: &str) {
-    self.value = value.to_string();
+  fn set_value(&mut self, value: &'a str) {
+    self.value = value;
   }
 }
 
 #[derive(Clone, Debug, PartialEq)]
-pub struct Object {
+pub struct Object<'a> {
   pub term_type: TermType,
-  pub value: String,
+  pub value: &'a str,
   pub datatype: Option<String>,
   pub language: Option<String>,
 }
 
-impl<'a> Term<'a> for Object {
-  fn new() -> Object {
+impl<'a> Term<'a> for Object<'a> {
+  fn new() -> Object<'a> {
     Object {
       term_type: TermType::None,
-      value: String::from(""),
+      value: "",
       datatype: None,
       language: None,
     }
@@ -134,12 +134,12 @@ impl<'a> Term<'a> for Object {
     &self.value
   }
 
-  fn set_value(&mut self, value: &str) {
-    self.value = value.to_string();
+  fn set_value(&mut self, value: &'a str) {
+    self.value = value;
   }
 }
 
-impl Object {
+impl Object<'_> {
   pub fn get_language(&self) -> Option<String> {
     self.language.clone()
   }
@@ -158,16 +158,16 @@ impl Object {
 }
 
 #[derive(Clone, Debug, PartialEq)]
-pub struct Graph {
+pub struct Graph<'a> {
   pub term_type: TermType,
-  pub value: String,
+  pub value: &'a str,
 }
 
-impl<'a> Term<'a> for Graph {
-  fn new() -> Graph {
+impl<'a> Term<'a> for Graph<'a> {
+  fn new() -> Graph<'a> {
     Graph {
       term_type: TermType::None,
-      value: String::from(""),
+      value: "",
     }
   }
 
@@ -183,8 +183,8 @@ impl<'a> Term<'a> for Graph {
     &self.value
   }
 
-  fn set_value(&mut self, value: &str) {
-    self.value = value.to_string();
+  fn set_value(&mut self, value: &'a str) {
+    self.value = value;
   }
 }
 
@@ -198,9 +198,9 @@ pub trait QuadSerialize<'a> {
 #[derive(Clone, Debug, PartialEq)]
 pub struct QuadRef<'a> {
   pub subject: &'a Subject<'a>,
-  pub predicate: &'a Predicate,
-  pub object: &'a Object,
-  pub graph: &'a Graph,
+  pub predicate: &'a Predicate<'a>,
+  pub object: &'a Object<'a>,
+  pub graph: &'a Graph<'a>,
 }
 
 impl QuadSerialize<'_> for QuadRef<'_> {
@@ -224,9 +224,9 @@ impl QuadSerialize<'_> for QuadRef<'_> {
 #[derive(Clone, Debug, PartialEq)]
 pub struct Quad<'a> {
   pub subject: Subject<'a>,
-  pub predicate: Predicate,
-  pub object: Object,
-  pub graph: Graph,
+  pub predicate: Predicate<'a>,
+  pub object: Object<'a>,
+  pub graph: Graph<'a>,
 }
 
 impl<'a> Quad<'a> {
@@ -283,14 +283,14 @@ impl<'a> Dataset<'a> {
   pub fn add(&mut self, quad: Quad<'a>) -> bool {
     let graph = quad.graph.clone();
     let graph_name = graph.value;
-    match self.graph_map.get_mut(&graph_name) {
+    match self.graph_map.get_mut(graph_name) {
       Some(quad_ptrs) => {
         quad_ptrs.push(self.quads.len());
       }
       None => {
         let mut quad_ptrs = Vec::new();
         quad_ptrs.push(self.quads.len());
-        self.graph_map.insert(graph_name, quad_ptrs);
+        self.graph_map.insert(graph_name.to_string(), quad_ptrs);
       }
     }
 
@@ -342,7 +342,7 @@ where
   } else {
     // append "\"escape(object.value)\""
     nquad.push('\"');
-    nquad.push_str(&escape_string(&o.value));
+    nquad.push_str(&escape_string(o.value));
     nquad.push('\"');
     if let Some(datatype) = &o.datatype {
       if datatype == RDF_LANGSTRING {
@@ -412,9 +412,74 @@ pub fn parse_nquads(dataset: &str) -> Dataset {
           value: group.get(2).unwrap().as_str(),
         }
       };
-      let predicate = parse_predicate(&group);
-      let object = parse_object(&group);
-      let graph = parse_graph(&group);
+      let predicate = Predicate {
+        term_type: TermType::NamedNode,
+        value: group.get(3).unwrap().as_str(),
+      };
+
+      let object;
+      if let Some(value) = group.get(4) {
+        object = Object {
+          term_type: TermType::NamedNode,
+          value: value.as_str(),
+          datatype: None,
+          language: None,
+        };
+      } else if let Some(value) = group.get(5) {
+        object = Object {
+          term_type: TermType::BlankNode,
+          value: value.as_str(),
+          datatype: None,
+          language: None,
+        };
+      } else {
+        // FIXME: how to do this!?
+        // let escaped = String::from(group.get(6).unwrap().as_str());
+        // let unescaped = unescape_string(&escaped);
+        let should_be_unescacped = group.get(6).unwrap().as_str();
+
+        if let Some(datatype) = group.get(7) {
+          object = Object {
+            term_type: TermType::Literal,
+            value: &should_be_unescacped,
+            datatype: Some(String::from(datatype.as_str())),
+            language: None,
+          };
+        } else if let Some(language) = group.get(8) {
+          object = Object {
+            term_type: TermType::Literal,
+            value: &should_be_unescacped,
+            datatype: Some(String::from(RDF_LANGSTRING)),
+            language: Some(String::from(language.as_str())),
+          };
+        } else {
+          object = Object {
+            term_type: TermType::Literal,
+            value: &should_be_unescacped,
+            datatype: Some(String::from(XSD_STRING)),
+            language: None,
+          }
+        }
+      }
+
+      let graph;
+      if let Some(value) = group.get(9) {
+        graph = Graph {
+          term_type: TermType::NamedNode,
+          value: value.as_str(),
+        };
+      } else if let Some(value) = group.get(10) {
+        graph = Graph {
+          term_type: TermType::BlankNode,
+          value: value.as_str(),
+        };
+      } else {
+        graph = Graph {
+          term_type: TermType::DefaultGraph,
+          value: "@default",
+        }
+      }
+
       rdf_dataset.add(Quad {
         subject,
         predicate,
@@ -617,114 +682,112 @@ lazy_static! {
 }
 
 // pub fn parse_nquad<'a>(serialized_triple: &'a str) -> Quad<'a> {
-pub fn parse_nquad<'a>(group: &'a regex::Captures<'a>) -> Quad<'a> {
-  let subject = parse_subject(&group);
-  let predicate = parse_predicate(&group);
-  let object = parse_object(&group);
-  let graph = parse_graph(&group);
+// pub fn parse_nquad<'a>(group: &'a regex::Captures<'a>) -> Quad<'a> {
+//   let subject = parse_subject(&group);
+//   let predicate = parse_predicate(&group);
+//   let object = parse_object(&group);
+//   let graph = parse_graph(&group);
 
-  Quad {
-    subject,
-    predicate,
-    object,
-    graph,
-  }
-}
+//   Quad {
+//     subject,
+//     predicate,
+//     object,
+//     graph,
+//   }
+// }
 
-fn parse_subject<'a>(group: &'a regex::Captures) -> Subject<'a> {
-  let subject = match group.get(1) {
-    Some(value) => Subject {
-      term_type: TermType::NamedNode,
-      value: value.as_str(),
-    },
-    None => Subject {
-      term_type: TermType::BlankNode,
-      value: group.get(2).unwrap().as_str(),
-    },
-  };
+// fn parse_subject<'a>(group: &'a regex::Captures) -> Subject<'a> {
+//   let subject = match group.get(1) {
+//     Some(value) => Subject {
+//       term_type: TermType::NamedNode,
+//       value: value.as_str(),
+//     },
+//     None => Subject {
+//       term_type: TermType::BlankNode,
+//       value: group.get(2).unwrap().as_str(),
+//     },
+//   };
 
-  subject
-}
+//   subject
+// }
 
-fn parse_predicate(group: &regex::Captures) -> Predicate {
-  let value = group.get(3).unwrap();
+// fn parse_predicate<'a>(group: &'a regex::Captures) -> Predicate<'a> {
+//   let value = group.get(3).unwrap();
 
-  Predicate {
-    term_type: TermType::NamedNode,
-    value: String::from(value.as_str()),
-  }
-}
+//   Predicate {
+//     term_type: TermType::NamedNode,
+//     value: value.as_str(),
+//   }
+// }
 
-fn parse_object(group: &regex::Captures) -> Object {
-  if let Some(value) = group.get(4) {
-    let object = Object {
-      term_type: TermType::NamedNode,
-      value: String::from(value.as_str()),
-      datatype: None,
-      language: None,
-    };
-    return object;
-  } else if let Some(value) = group.get(5) {
-    let object = Object {
-      term_type: TermType::BlankNode,
-      value: String::from(value.as_str()),
-      datatype: None,
-      language: None,
-    };
-    return object;
-  }
+// fn parse_object<'a>(group: &'a regex::Captures) -> Object<'a> {
+//   if let Some(value) = group.get(4) {
+//     let object = Object {
+//       term_type: TermType::NamedNode,
+//       value: value.as_str(),
+//       datatype: None,
+//       language: None,
+//     };
+//     return object;
+//   } else if let Some(value) = group.get(5) {
+//     let object = Object {
+//       term_type: TermType::BlankNode,
+//       value: value.as_str(),
+//       datatype: None,
+//       language: None,
+//     };
+//     return object;
+//   }
 
-  let escaped = String::from(group.get(6).unwrap().as_str());
-  let unescaped = unescape_string(&escaped);
+//   let escaped = String::from(group.get(6).unwrap().as_str());
+//   let unescaped = unescape_string(&escaped);
 
-  if let Some(datatype) = group.get(7) {
-    let object = Object {
-      term_type: TermType::Literal,
-      value: unescaped,
-      datatype: Some(String::from(datatype.as_str())),
-      language: None,
-    };
-    return object;
-  } else if let Some(language) = group.get(8) {
-    let object = Object {
-      term_type: TermType::Literal,
-      value: unescaped,
-      datatype: Some(String::from(RDF_LANGSTRING)),
-      language: Some(String::from(language.as_str())),
-    };
-    return object;
-  }
+//   if let Some(datatype) = group.get(7) {
+//     let object = Object {
+//       term_type: TermType::Literal,
+//       value: &unescaped,
+//       datatype: Some(String::from(datatype.as_str())),
+//       language: None,
+//     };
+//     return object;
+//   } else if let Some(language) = group.get(8) {
+//     let object = Object {
+//       term_type: TermType::Literal,
+//       value: &unescaped,
+//       datatype: Some(String::from(RDF_LANGSTRING)),
+//       language: Some(String::from(language.as_str())),
+//     };
+//     return object;
+//   }
 
-  Object {
-    term_type: TermType::Literal,
-    value: unescaped,
-    datatype: Some(String::from(XSD_STRING)),
-    language: None,
-  }
-}
+//   Object {
+//     term_type: TermType::Literal,
+//     value: &unescaped,
+//     datatype: Some(String::from(XSD_STRING)),
+//     language: None,
+//   }
+// }
 
-fn parse_graph(group: &regex::Captures) -> Graph {
-  if let Some(value) = group.get(9) {
-    let graph_name = String::from(value.as_str());
-    let graph = Graph {
-      term_type: TermType::NamedNode,
-      value: graph_name,
-    };
-    return graph;
-  } else if let Some(value) = group.get(10) {
-    let graph_name = String::from(value.as_str());
-    let graph = Graph {
-      term_type: TermType::BlankNode,
-      value: graph_name,
-    };
-    return graph;
-  }
+// fn parse_graph<'a>(group: &'a regex::Captures) -> Graph<'a> {
+//   if let Some(value) = group.get(9) {
+//     let graph = Graph {
+//       term_type: TermType::NamedNode,
+//       value: value.as_str(),
+//     };
+//     return graph;
+//   } else if let Some(value) = group.get(10) {
+//     let graph = Graph {
+//       term_type: TermType::BlankNode,
+//       value: value.as_str(),
+//     };
+//     return graph;
+//   }
 
-  Graph {
-    term_type: TermType::DefaultGraph,
-    value: String::from("@default"),
-  }
-}
+//   Graph {
+//     term_type: TermType::DefaultGraph,
+//     value: "@default",
+//   }
+// }
 
 fn escape_string<'a, S: Into<Cow<'a, str>>>(input: S) -> Cow<'a, str> {
   lazy_static! {
@@ -759,24 +822,24 @@ fn escape_string<'a, S: Into<Cow<'a, str>>>(input: S) -> Cow<'a, str> {
   input
 }
 
-fn unescape_string(escaped: &str) -> String {
-  let mut unescaped = escaped.to_string();
+// fn unescape_string(escaped: &str) -> String {
+//   let mut unescaped = escaped.to_string();
 
-  unescaped = unescaped.replace("\\t", "\t");
-  // Must use hex for escape sequence
-  // see: https://github.com/rust-lang/rfcs/issues/751
-  unescaped = unescaped.replace("\\b", "\x08");
-  unescaped = unescaped.replace("\\n", "\n");
-  unescaped = unescaped.replace("\\r", "\r");
-  // Must use hex for escape sequence
-  // see: https://github.com/rust-lang/rfcs/issues/751
-  unescaped = unescaped.replace("\\f", "\x0C");
-  unescaped = unescaped.replace("\\\"", "\"");
-  unescaped = unescaped.replace("\'", "'");
-  unescaped = unescaped.replace("\\\\", "\\");
+//   unescaped = unescaped.replace("\\t", "\t");
+//   // Must use hex for escape sequence
+//   // see: https://github.com/rust-lang/rfcs/issues/751
+//   unescaped = unescaped.replace("\\b", "\x08");
+//   unescaped = unescaped.replace("\\n", "\n");
+//   unescaped = unescaped.replace("\\r", "\r");
+//   // Must use hex for escape sequence
+//   // see: https://github.com/rust-lang/rfcs/issues/751
+//   unescaped = unescaped.replace("\\f", "\x0C");
+//   unescaped = unescaped.replace("\\\"", "\"");
+//   unescaped = unescaped.replace("\'", "'");
+//   unescaped = unescaped.replace("\\\\", "\\");
 
-  unescaped
-}
+//   unescaped
+// }
 
 #[cfg(test)]
 mod tests {
@@ -812,11 +875,11 @@ mod tests {
   fn predicate_equals() {
     let predicate_a = Predicate {
       term_type: TermType::NamedNode,
-      value: String::from("ganesh"),
+      value: "ganesh",
     };
     let predicate_b = Predicate {
       term_type: TermType::NamedNode,
-      value: String::from("ganesh"),
+      value: "ganesh",
     };
     assert_eq!(predicate_a, predicate_b);
   }
@@ -825,11 +888,11 @@ mod tests {
   fn predicate_not_equals() {
     let predicate_a = Predicate {
       term_type: TermType::NamedNode,
-      value: String::from("ganesh"),
+      value: "ganesh",
     };
     let predicate_b = Predicate {
       term_type: TermType::NamedNode,
-      value: String::from("annan"),
+      value: "annan",
     };
     assert_ne!(predicate_a, predicate_b);
   }
@@ -838,13 +901,13 @@ mod tests {
   fn object_equals() {
     let object_a = Object {
       term_type: TermType::NamedNode,
-      value: String::from("ganesh"),
+      value: "ganesh",
       datatype: Some(String::from("http://example.com/t2")),
       language: None,
     };
     let object_b = Object {
       term_type: TermType::NamedNode,
-      value: String::from("ganesh"),
+      value: "ganesh",
       datatype: Some(String::from("http://example.com/t2")),
       language: None,
     };
@@ -855,13 +918,13 @@ mod tests {
   fn object_not_equals() {
     let object_a = Object {
       term_type: TermType::NamedNode,
-      value: String::from("ganesh"),
+      value: "ganesh",
       datatype: Some(String::from("http://example.com/t2")),
       language: None,
     };
     let object_b = Object {
       term_type: TermType::NamedNode,
-      value: String::from("ganesh"),
+      value: "ganesh",
       datatype: Some(String::from("http://example.com/t2")),
       language: Some(String::from("fr")),
     };
@@ -872,11 +935,11 @@ mod tests {
   fn graph_equals() {
     let graph_a = Graph {
       term_type: TermType::NamedNode,
-      value: String::from("@default"),
+      value: "@default",
     };
     let graph_b = Graph {
       term_type: TermType::NamedNode,
-      value: String::from("@default"),
+      value: "@default",
     };
     assert_eq!(graph_a, graph_b);
   }
@@ -885,11 +948,11 @@ mod tests {
   fn graph_not_equals() {
     let graph_a = Graph {
       term_type: TermType::NamedNode,
-      value: String::from("@default"),
+      value: "@default",
     };
     let graph_b = Graph {
       term_type: TermType::NamedNode,
-      value: String::from("_:b10"),
+      value: "_:b10",
     };
     assert_ne!(graph_a, graph_b);
   }
@@ -902,17 +965,17 @@ mod tests {
     };
     let predicate = Predicate {
       term_type: TermType::NamedNode,
-      value: String::from("ganesh"),
+      value: "ganesh",
     };
     let object = Object {
       term_type: TermType::NamedNode,
-      value: String::from("ganesh"),
+      value: "ganesh",
       datatype: Some(String::from("http://example.com/t2")),
       language: None,
     };
     let graph = Graph {
       term_type: TermType::NamedNode,
-      value: String::from("@default"),
+      value: "@default",
     };
 
     let quad_a = Quad {
@@ -938,21 +1001,21 @@ mod tests {
     };
     let predicate = Predicate {
       term_type: TermType::NamedNode,
-      value: String::from("ganesh"),
+      value: "ganesh",
     };
     let object = Object {
       term_type: TermType::NamedNode,
-      value: String::from("ganesh"),
+      value: "ganesh",
       datatype: Some(String::from("http://example.com/t2")),
       language: None,
     };
     let graph_a = Graph {
       term_type: TermType::NamedNode,
-      value: String::from("@default"),
+      value: "@default",
     };
     let graph_b = Graph {
       term_type: TermType::NamedNode,
-      value: String::from("_:b10"),
+      value: "_:b10",
     };
 
     let quad_a = Quad {

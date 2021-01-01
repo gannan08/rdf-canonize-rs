@@ -287,9 +287,9 @@ impl<'b> URDNA2015<'b> {
         o = nquads::Object {
           term_type: TermType::BlankNode,
           value: if quad.object.value == id {
-            "_:a".to_string()
+            "_:a"
           } else {
-            "_:z".to_string()
+            "_:z"
           },
           datatype: quad.object.get_datatype(),
           language: quad.object.get_language(),
@@ -304,9 +304,9 @@ impl<'b> URDNA2015<'b> {
         g = nquads::Graph {
           term_type: TermType::BlankNode,
           value: if quad.graph.value == id {
-            "_:a".to_string()
+            "_:a"
           } else {
-            "_:z".to_string()
+            "_:z"
           },
         };
         graph = Some(&g);

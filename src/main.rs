@@ -11,25 +11,23 @@ fn main() {
 
     let filename = &args[1];
 
-    // println!("Filename {}", filename);
-
     let mut line_counter = 0;
-    // if let Ok(lines) = read_lines(filename) {
-    //     let mut t = String::with_capacity(2050);
-    //     for line in lines {
-    //         if let Ok(l) = line {
-    //             line_counter += 1;
-    //             t.push_str(&l);
-    //             t.push('\n');
-    //             if line_counter % 20 == 0 {
-    //                 let q2 = rdf_canonize::nquads::parse_nquads(&t);
-    //                 let serialized_nquads = rdf_canonize::canonize(&q2, "URDNA2015").unwrap();
-    //                 print!("{}", serialized_nquads);
-    //                 t = String::with_capacity(2050);
-    //             }
-    //         }
-    //     }
-    // }
+    if let Ok(lines) = read_lines(filename) {
+        let mut t = String::with_capacity(2050);
+        for line in lines {
+            if let Ok(l) = line {
+                line_counter += 1;
+                t.push_str(&l);
+                t.push('\n');
+                if line_counter % 20 == 0 {
+                    let q2 = rdf_canonize::nquads::parse_nquads(&t);
+                    let serialized_nquads = rdf_canonize::canonize(&q2, "URDNA2015").unwrap();
+                    print!("{}", serialized_nquads);
+                    t = String::with_capacity(2050);
+                }
+            }
+        }
+    }
 }
 
 // The output is wrapped in a Result to allow matching on errors
