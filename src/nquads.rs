@@ -4,9 +4,9 @@ use regex::Regex;
 use std::borrow::Cow;
 use std::collections::HashMap;
 
-use rio_api::parser::QuadsParser;
-use rio_turtle::{NQuadsParser, TurtleError};
-use rio_api::model::{NamedOrBlankNode};
+// use rio_api::parser::QuadsParser;
+// use rio_turtle::{NQuadsParser, TurtleError};
+// use rio_api::model::{NamedOrBlankNode};
 
 // define default capacities
 pub const DEFAULT_NQUAD_CAPACITY: usize = 256;
@@ -68,8 +68,8 @@ impl<'a> Term for Subject<'a> {
     &self.value
   }
 
-  fn set_value(&mut self, value: &str) {
-    panic!("SUBJECT SET_VALUE BRIDGE OUT!");
+  fn set_value(&mut self, _value: &str) {
+    panic!("subject set_value bridge out!");
     // self.value = value;
   }
 }
@@ -384,14 +384,35 @@ where
   nquad
 }
 
-pub fn parse_nquads_ol(dataset: &str) -> Dataset {
+// pub fn parse_nquads_ol(dataset: &str) -> Dataset {
+//   let lines = dataset.lines();
+
+//   let mut rdf_dataset = Dataset::new();
+
+//   for line in lines {
+//     let quad = parse_nquad(&line);
+//     println!("{:?}", quad.predicate);
+//     rdf_dataset.add(quad);
+//   }
+
+//   rdf_dataset
+// }
+
+pub fn parse_nquads<'a>(dataset: &'a str, groups: &'a mut Vec<&regex::Captures<'a>>) -> Dataset<'a> {
   let lines = dataset.lines();
 
   let mut rdf_dataset = Dataset::new();
 
-  for line in lines {
-    let quad = parse_nquad(&line);
-    println!("{:?}", quad.predicate);
+  for line in lines.into_iter() {
+    let idx = match QUAD_REGEX.captures(line) {
+      Some(group) => {
+        groups.push(group);
+        groups.len() - 1
+      },
+      None => panic!()
+    };
+    let group = groups[idx];
+    let quad = parse_nquad(&group);
     rdf_dataset.add(quad);
   }
 
@@ -399,105 +420,105 @@ pub fn parse_nquads_ol(dataset: &str) -> Dataset {
 }
 
 #[allow(unused_must_use)]
-pub fn parse_nquads(dataset: &str) -> Dataset {
-  let mut rdf_dataset = Dataset::new();
+// pub fn parse_nquads_rio(dataset: &str) -> Dataset {
+//   let mut rdf_dataset = Dataset::new();
 
-  NQuadsParser::new(dataset.as_ref()).parse_all(& mut |t| {
-    let id = match t.subject {
-      NamedOrBlankNode::NamedNode(node) => node.iri,
-      NamedOrBlankNode::BlankNode(node) => node.id,
-    };
-    let subject = Subject {
-      term_type: term_type(&rio_api::model::Term::from(t.subject)),
-      value: id,
-    };
-    let predicate = Predicate {
-      term_type: TermType::NamedNode,
-      value: t.predicate.iri.to_string(),
-    };
-    let object = object_data(&rio_api::model::Term::from(t.object));
+//   NQuadsParser::new(dataset.as_ref()).parse_all(& mut |t| {
+//     let id = match t.subject {
+//       NamedOrBlankNode::NamedNode(node) => node.iri,
+//       NamedOrBlankNode::BlankNode(node) => node.id,
+//     };
+//     let subject = Subject {
+//       term_type: term_type(&rio_api::model::Term::from(t.subject)),
+//       value: id,
+//     };
+//     let predicate = Predicate {
+//       term_type: TermType::NamedNode,
+//       value: t.predicate.iri.to_string(),
+//     };
+//     let object = object_data(&rio_api::model::Term::from(t.object));
 
-    let graph;
-    if let Some(graph_name) = t.graph_name {
-      graph = graph_data(&rio_api::model::Term::from(graph_name));
-    } else {
-      graph = Graph {
-        term_type: TermType::DefaultGraph,
-        value: String::from(""),
-      };
-    }
-    let quad = Quad {
-      subject,
-      predicate,
-      object,
-      graph,
-    };
-    rdf_dataset.add(quad);
+//     let graph;
+//     if let Some(graph_name) = t.graph_name {
+//       graph = graph_data(&rio_api::model::Term::from(graph_name));
+//     } else {
+//       graph = Graph {
+//         term_type: TermType::DefaultGraph,
+//         value: String::from(""),
+//       };
+//     }
+//     let quad = Quad {
+//       subject,
+//       predicate,
+//       object,
+//       graph,
+//     };
+//     rdf_dataset.add(quad);
 
-    Ok(()) as Result<(), TurtleError>
-  });
+//     Ok(()) as Result<(), TurtleError>
+//   });
 
-  rdf_dataset
-}
+//   rdf_dataset
+// }
 
-fn graph_data(rio_term: &rio_api::model::Term) -> Graph {
-  match rio_term {
-    rio_api::model::Term::NamedNode(node) => Graph {
-      term_type: TermType::NamedNode,
-      value: node.iri.to_string(),
-    },
-    rio_api::model::Term::BlankNode(node) => Graph {
-      term_type: TermType::BlankNode,
-      value: node.to_string(),
-    },
-    _ => panic!(),
-  }
-}
+// fn graph_data(rio_term: &rio_api::model::Term) -> Graph {
+//   match rio_term {
+//     rio_api::model::Term::NamedNode(node) => Graph {
+//       term_type: TermType::NamedNode,
+//       value: node.iri.to_string(),
+//     },
+//     rio_api::model::Term::BlankNode(node) => Graph {
+//       term_type: TermType::BlankNode,
+//       value: node.to_string(),
+//     },
+//     _ => panic!(),
+//   }
+// }
 
-fn object_data(rio_term: &rio_api::model::Term) -> Object {
-  match rio_term {
-    rio_api::model::Term::Literal(literal) => match literal {
-      rio_api::model::Literal::Simple { value } => Object {
-        term_type: TermType::Literal,
-        value: value.to_string(),
-        language: None,
-        datatype: Some(XSD_STRING.to_string()),
-      },
-      rio_api::model::Literal::LanguageTaggedString { value, language } => Object {
-        term_type: TermType::Literal,
-        value: value.to_string(),
-        language: Some(language.to_string()),
-        datatype: Some(RDF_LANGSTRING.to_string()),
-      },
-      rio_api::model::Literal::Typed { value, datatype } => Object {
-        term_type: TermType::Literal,
-        value: value.to_string(),
-        language: None,
-        datatype: Some(datatype.to_string()),
-      },
-    },
-    rio_api::model::Term::BlankNode(node) => Object {
-      term_type: TermType::BlankNode,
-      value: node.to_string(),
-      language: None,
-      datatype: None,
-    },
-    rio_api::model::Term::NamedNode(node) => Object {
-      term_type: TermType::NamedNode,
-      value: node.iri.to_string(),
-      language: None,
-      datatype: None,
-    },
-  }
-}
+// fn object_data(rio_term: &rio_api::model::Term) -> Object {
+//   match rio_term {
+//     rio_api::model::Term::Literal(literal) => match literal {
+//       rio_api::model::Literal::Simple { value } => Object {
+//         term_type: TermType::Literal,
+//         value: value.to_string(),
+//         language: None,
+//         datatype: Some(XSD_STRING.to_string()),
+//       },
+//       rio_api::model::Literal::LanguageTaggedString { value, language } => Object {
+//         term_type: TermType::Literal,
+//         value: value.to_string(),
+//         language: Some(language.to_string()),
+//         datatype: Some(RDF_LANGSTRING.to_string()),
+//       },
+//       rio_api::model::Literal::Typed { value, datatype } => Object {
+//         term_type: TermType::Literal,
+//         value: value.to_string(),
+//         language: None,
+//         datatype: Some(datatype.to_string()),
+//       },
+//     },
+//     rio_api::model::Term::BlankNode(node) => Object {
+//       term_type: TermType::BlankNode,
+//       value: node.to_string(),
+//       language: None,
+//       datatype: None,
+//     },
+//     rio_api::model::Term::NamedNode(node) => Object {
+//       term_type: TermType::NamedNode,
+//       value: node.iri.to_string(),
+//       language: None,
+//       datatype: None,
+//     },
+//   }
+// }
 
-fn term_type(rio_term: &rio_api::model::Term) -> TermType {
-  match rio_term {
-    rio_api::model::Term::NamedNode(_) => TermType::NamedNode,
-    rio_api::model::Term::BlankNode(_) => TermType::BlankNode,
-    rio_api::model::Term::Literal(_) => TermType::Literal,
-  }
-}
+// fn term_type(rio_term: &rio_api::model::Term) -> TermType {
+//   match rio_term {
+//     rio_api::model::Term::NamedNode(_) => TermType::NamedNode,
+//     rio_api::model::Term::BlankNode(_) => TermType::BlankNode,
+//     rio_api::model::Term::Literal(_) => TermType::Literal,
+//   }
+// }
 
 lazy_static! {
   // https://www.w3.org/TR/turtle/#grammar-production-BLANK_NODE_LABEL
@@ -566,12 +587,9 @@ lazy_static! {
   static ref QUAD_REGEX: Regex = Regex::new(&QUAD).unwrap();
 }
 
-pub fn parse_nquad(serialized_triple: &str) -> Quad {
-  let group = QUAD_REGEX.captures(serialized_triple).unwrap();
-
-  // FIXME:
-  // let subject = parse_subject(&group);
-  let subject = Subject::new();
+// pub fn parse_nquad<'a>(serialized_triple: &'a str) -> Quad<'a> {
+pub fn parse_nquad<'a>(group: &'a regex::Captures<'a>) -> Quad<'a> {
+  let subject = parse_subject(&group);
   let predicate = parse_predicate(&group);
   let object = parse_object(&group);
   let graph = parse_graph(&group);
@@ -584,20 +602,20 @@ pub fn parse_nquad(serialized_triple: &str) -> Quad {
   }
 }
 
-// fn parse_subject(group: &regex::Captures) -> Subject {
-//   let subject = match group.get(1) {
-//     Some(value) => Subject {
-//       term_type: TermType::NamedNode,
-//       value: String::from(value.as_str()),
-//     },
-//     None => Subject {
-//       term_type: TermType::BlankNode,
-//       value: String::from(group.get(2).unwrap().as_str()),
-//     },
-//   };
+fn parse_subject<'a>(group: &'a regex::Captures) -> Subject<'a> {
+  let subject = match group.get(1) {
+    Some(value) => Subject {
+      term_type: TermType::NamedNode,
+      value: value.as_str(),
+    },
+    None => Subject {
+      term_type: TermType::BlankNode,
+      value: group.get(2).unwrap().as_str(),
+    },
+  };
 
-//   subject
-// }
+  subject
+}
 
 fn parse_predicate(group: &regex::Captures) -> Predicate {
   let value = group.get(3).unwrap();
