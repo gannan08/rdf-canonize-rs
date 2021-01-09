@@ -4,6 +4,8 @@ use regex::Regex;
 use std::borrow::Cow;
 use std::collections::HashMap;
 
+use hyperscan::chimera::prelude::*;
+
 // use rio_api::parser::QuadsParser;
 // use rio_turtle::{NQuadsParser, TurtleError};
 // use rio_api::model::{NamedOrBlankNode};
@@ -399,94 +401,201 @@ where
 
 pub fn parse_nquads(dataset: &str) -> Dataset {
   let mut rdf_dataset = Dataset::new();
+  let hyper_scratch: Scratch = HYPER_DB.alloc_scratch().unwrap();
+
+  let mut errors = vec![];
+  let zero_range = std::ops::Range {start: 0, end: 0};
 
   for line in dataset.lines() {
-    for group in QUAD_REGEX.captures(line) {
-      let subject = match group.get(1) {
-        Some(value) => Subject {
-          term_type: TermType::NamedNode,
-          value: value.as_str(),
+      HYPER_DB.scan(
+        line,
+        &hyper_scratch,
+        |_id, _from, _to, _flags, captured: Option<&[Capture]>| {
+            if let Some(captured) = captured {
+                let subject = match captured[1].range() {
+                  value if value == zero_range => Subject {
+                    term_type: TermType::BlankNode,
+                    value: &line[captured[2].range()],
+                  },
+                  _ => Subject {
+                    term_type: TermType::NamedNode,
+                    value: &line[captured[1].range()],
+                  },
+                };
+                // println!("SSSSSSSS {:?}", subject);
+                let predicate = Predicate {
+                  term_type: TermType::NamedNode,
+                  value: &line[captured[3].range()],
+                };
+                // println!("PPPPPPPP {:?}", predicate);
+                println!("PPPPPP {:?}", line);
+                println!("QQQQQQq {:?}", captured[4].range());
+                let object;
+                if captured[4].range() != zero_range {
+                  object = Object {
+                    term_type: TermType::NamedNode,
+                    value: &line[captured[4].range()],
+                    datatype: None,
+                    language: None,
+                  };
+                } else if captured[5].range() != zero_range {
+                  object = Object {
+                    term_type: TermType::BlankNode,
+                    value: &line[captured[5].range()],
+                    datatype: None,
+                    language: None,
+                  };
+                } else {
+                  // FIXME: how to do this!?
+                  // let escaped = String::from(group.get(6).unwrap().as_str());
+                  // let unescaped = unescape_string(&escaped);
+                  let should_be_unescaped = &line[captured[6].range()];
+                  if captured[7].range() != zero_range {
+                    object = Object {
+                      term_type: TermType::Literal,
+                      value: &should_be_unescaped,
+                      datatype: Some(String::from(&line[captured[7].range()])),
+                      language: None,
+                    };
+                  } else if captured[8].range() != zero_range {
+                    object = Object {
+                      term_type: TermType::Literal,
+                      value: &should_be_unescaped,
+                      datatype: Some(String::from(RDF_LANGSTRING)),
+                      language: Some(String::from(&line[captured[8].range()])),
+                    };
+                  } else {
+                    object = Object {
+                      term_type: TermType::Literal,
+                      value: &should_be_unescaped,
+                      datatype: Some(String::from(XSD_STRING)),
+                      language: None,
+                    }
+                  }
+                }
+                // println!("OOOOOOO {:?}", object);
+                let graph;
+                if captured.len() >= 10 {
+                  if captured[9].range() != zero_range {
+                    graph = Graph {
+                      term_type: TermType::NamedNode,
+                      value: &line[captured[9].range()],
+                    };
+                  } else {
+                    graph = Graph {
+                      term_type: TermType::BlankNode,
+                      value: &line[captured[10].range()],
+                    };
+                  }
+                } else {
+                  graph = Graph {
+                    term_type: TermType::DefaultGraph,
+                    value: "@default",
+                  }
+                }
+                // println!("GGGG {:?}", graph);
+                rdf_dataset.add(Quad {
+                  subject,
+                  predicate,
+                  object,
+                  graph,
+                });
+            }
+            Matching::Continue
         },
-        None => Subject {
-          term_type: TermType::BlankNode,
-          value: group.get(2).unwrap().as_str(),
-        }
-      };
-      let predicate = Predicate {
-        term_type: TermType::NamedNode,
-        value: group.get(3).unwrap().as_str(),
-      };
+        |error_type, id| {
+            errors.push((error_type, id));
+            Matching::Skip
+        },
+    )
+    .unwrap();
 
-      let object;
-      if let Some(value) = group.get(4) {
-        object = Object {
-          term_type: TermType::NamedNode,
-          value: value.as_str(),
-          datatype: None,
-          language: None,
-        };
-      } else if let Some(value) = group.get(5) {
-        object = Object {
-          term_type: TermType::BlankNode,
-          value: value.as_str(),
-          datatype: None,
-          language: None,
-        };
-      } else {
-        // FIXME: how to do this!?
-        // let escaped = String::from(group.get(6).unwrap().as_str());
-        // let unescaped = unescape_string(&escaped);
-        let should_be_unescacped = group.get(6).unwrap().as_str();
+    // for group in QUAD_REGEX.captures(line) {
+    //   let subject = match group.get(1) {
+    //     Some(value) => Subject {
+    //       term_type: TermType::NamedNode,
+    //       value: value.as_str(),
+    //     },
+    //     None => Subject {
+    //       term_type: TermType::BlankNode,
+    //       value: group.get(2).unwrap().as_str(),
+    //     }
+    //   };
+    //   let predicate = Predicate {
+    //     term_type: TermType::NamedNode,
+    //     value: group.get(3).unwrap().as_str(),
+    //   };
 
-        if let Some(datatype) = group.get(7) {
-          object = Object {
-            term_type: TermType::Literal,
-            value: &should_be_unescacped,
-            datatype: Some(String::from(datatype.as_str())),
-            language: None,
-          };
-        } else if let Some(language) = group.get(8) {
-          object = Object {
-            term_type: TermType::Literal,
-            value: &should_be_unescacped,
-            datatype: Some(String::from(RDF_LANGSTRING)),
-            language: Some(String::from(language.as_str())),
-          };
-        } else {
-          object = Object {
-            term_type: TermType::Literal,
-            value: &should_be_unescacped,
-            datatype: Some(String::from(XSD_STRING)),
-            language: None,
-          }
-        }
-      }
+    //   let object;
+    //   if let Some(value) = group.get(4) {
+    //     object = Object {
+    //       term_type: TermType::NamedNode,
+    //       value: value.as_str(),
+    //       datatype: None,
+    //       language: None,
+    //     };
+    //   } else if let Some(value) = group.get(5) {
+    //     object = Object {
+    //       term_type: TermType::BlankNode,
+    //       value: value.as_str(),
+    //       datatype: None,
+    //       language: None,
+    //     };
+    //   } else {
+    //     // FIXME: how to do this!?
+    //     // let escaped = String::from(group.get(6).unwrap().as_str());
+    //     // let unescaped = unescape_string(&escaped);
+    //     let should_be_unescacped = group.get(6).unwrap().as_str();
 
-      let graph;
-      if let Some(value) = group.get(9) {
-        graph = Graph {
-          term_type: TermType::NamedNode,
-          value: value.as_str(),
-        };
-      } else if let Some(value) = group.get(10) {
-        graph = Graph {
-          term_type: TermType::BlankNode,
-          value: value.as_str(),
-        };
-      } else {
-        graph = Graph {
-          term_type: TermType::DefaultGraph,
-          value: "@default",
-        }
-      }
+    //     if let Some(datatype) = group.get(7) {
+    //       object = Object {
+    //         term_type: TermType::Literal,
+    //         value: &should_be_unescacped,
+    //         datatype: Some(String::from(datatype.as_str())),
+    //         language: None,
+    //       };
+    //     } else if let Some(language) = group.get(8) {
+    //       object = Object {
+    //         term_type: TermType::Literal,
+    //         value: &should_be_unescacped,
+    //         datatype: Some(String::from(RDF_LANGSTRING)),
+    //         language: Some(String::from(language.as_str())),
+    //       };
+    //     } else {
+    //       object = Object {
+    //         term_type: TermType::Literal,
+    //         value: &should_be_unescacped,
+    //         datatype: Some(String::from(XSD_STRING)),
+    //         language: None,
+    //       }
+    //     }
+    //   }
 
-      rdf_dataset.add(Quad {
-        subject,
-        predicate,
-        object,
-        graph,
-      });
-    };
+    //   let graph;
+    //   if let Some(value) = group.get(9) {
+    //     graph = Graph {
+    //       term_type: TermType::NamedNode,
+    //       value: value.as_str(),
+    //     };
+    //   } else if let Some(value) = group.get(10) {
+    //     graph = Graph {
+    //       term_type: TermType::BlankNode,
+    //       value: value.as_str(),
+    //     };
+    //   } else {
+    //     graph = Graph {
+    //       term_type: TermType::DefaultGraph,
+    //       value: "@default",
+    //     }
+    //   }
+
+    //   rdf_dataset.add(Quad {
+    //     subject,
+    //     predicate,
+    //     object,
+    //     graph,
+    //   });
+    // };
   }
 
   rdf_dataset
@@ -679,6 +788,10 @@ lazy_static! {
 
 
   static ref QUAD_REGEX: Regex = Regex::new(&QUAD).unwrap();
+
+  static ref QUAD_HYPER_PATTERN: Pattern = QUAD.parse().unwrap();
+
+  static ref HYPER_DB: Database = QUAD_HYPER_PATTERN.with_groups().unwrap();
 }
 
 // pub fn parse_nquad<'a>(serialized_triple: &'a str) -> Quad<'a> {
