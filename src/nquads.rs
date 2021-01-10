@@ -440,75 +440,71 @@ pub fn parse_nquads(dataset: &str) -> Dataset {
 
                 let object;
                 if captured[4].is_active() {
-                  object = Object {
-                    term_type: TermType::NamedNode,
-                    value: &line[captured[4].range()],
-                    datatype: None,
-                    language: None,
-                  };
-                } else if captured[5].is_active() {
-                  object = Object {
-                    term_type: TermType::BlankNode,
-                    value: &line[captured[5].range()],
-                    datatype: None,
-                    language: None,
-                  };
-                } else {
-                  // FIXME: how to do this!?
-                  // let escaped = String::from(group.get(6).unwrap().as_str());
-                  // let unescaped = unescape_string(&escaped);
-                  let should_be_unescaped = &line[captured[6].range()];
-                  if captured.len() >= 8 {
-                    if captured[7].is_active() {
-                      object = Object {
-                        term_type: TermType::Literal,
-                        value: &should_be_unescaped,
-                        datatype: Some(String::from(&line[captured[7].range()])),
-                        language: None,
-                      };
-                    } else {
-                      object = Object {
-                        term_type: TermType::Literal,
-                        value: &should_be_unescaped,
-                        datatype: Some(String::from(RDF_LANGSTRING)),
-                        language: Some(String::from(&line[captured[8].range()])),
-                      };
-                    }
-                  } else {
                     object = Object {
-                      term_type: TermType::Literal,
-                      value: &should_be_unescaped,
-                      datatype: Some(String::from(XSD_STRING)),
-                      language: None,
+                        term_type: TermType::NamedNode,
+                        value: &line[captured[4].range()],
+                        datatype: None,
+                        language: None,
+                    };
+                } else if captured[5].is_active() {
+                    object = Object {
+                        term_type: TermType::BlankNode,
+                        value: &line[captured[5].range()],
+                        datatype: None,
+                        language: None,
+                    };
+                } else {
+                    // FIXME: how to do this!?
+                    // let escaped = String::from(group.get(6).unwrap().as_str());
+                    // let unescaped = unescape_string(&escaped);
+                    let should_be_unescaped = &line[captured[6].range()];
+                    if captured.len() >= 8 && captured[7].is_active() {
+                        object = Object {
+                            term_type: TermType::Literal,
+                            value: should_be_unescaped,
+                            datatype: Some(String::from(&line[captured[7].range()])),
+                            language: None,
+                        };
+                    } else if captured.len() >= 9 && captured[8].is_active() {
+                        object = Object {
+                            term_type: TermType::Literal,
+                            value: should_be_unescaped,
+                            datatype: Some(String::from(RDF_LANGSTRING)),
+                            language: Some(String::from(&line[captured[8].range()])),
+                        };
+                    } else {
+                        object = Object {
+                            term_type: TermType::Literal,
+                            value: should_be_unescaped,
+                            datatype: Some(String::from(XSD_STRING)),
+                            language: None,
+                        }
                     }
-                  }
                 }
                 // println!("OOOOOOO {:?}", object);
                 let graph;
-                if captured.len() >= 10 {
-                  if captured[9].is_active() {
+                if captured.len() >= 10 && captured[9].is_active() {
                     graph = Graph {
-                      term_type: TermType::NamedNode,
-                      value: &line[captured[9].range()],
+                        term_type: TermType::NamedNode,
+                        value: &line[captured[9].range()],
                     };
-                  } else {
+                } else if captured.len() >= 11 && captured[10].is_active() {
                     graph = Graph {
-                      term_type: TermType::BlankNode,
-                      value: &line[captured[10].range()],
+                        term_type: TermType::BlankNode,
+                        value: &line[captured[10].range()],
                     };
-                  }
                 } else {
-                  graph = Graph {
-                    term_type: TermType::DefaultGraph,
-                    value: "@default",
-                  }
+                    graph = Graph {
+                        term_type: TermType::DefaultGraph,
+                        value: "@default",
+                    }
                 }
                 // println!("GGGG {:?}", graph);
                 rdf_dataset.add(Quad {
-                  subject,
-                  predicate,
-                  object,
-                  graph,
+                    subject,
+                    predicate,
+                    object,
+                    graph,
                 });
             }
             Matching::Continue
