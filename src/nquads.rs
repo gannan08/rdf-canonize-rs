@@ -403,23 +403,22 @@ pub fn parse_nquads(dataset: &str) -> Dataset {
   let mut rdf_dataset = Dataset::new();
 
   let mut errors = vec![];
-  let zero_range = std::ops::Range {start: 0, end: 0};
+  let hyper_scratch: Scratch = HYPER_DB.alloc_scratch().unwrap();
 
   for line in dataset.lines() {
-      let hyper_scratch: Scratch = HYPER_DB.alloc_scratch().unwrap();
       HYPER_DB.scan(
         line,
         &hyper_scratch,
         |_id, _from, _to, _flags, captured: Option<&[Capture]>| {
             if let Some(captured) = captured {
-                let subject = match captured[1].range() {
-                  value if value == zero_range => Subject {
-                    term_type: TermType::BlankNode,
-                    value: &line[captured[2].range()],
-                  },
-                  _ => Subject {
+                let subject = match captured[1].is_active() {
+                  true => Subject {
                     term_type: TermType::NamedNode,
                     value: &line[captured[1].range()],
+                  },
+                  false => Subject {
+                    term_type: TermType::BlankNode,
+                    value: &line[captured[2].range()],
                   },
                 };
                 // println!("SSSSSSSS {:?}", subject);
@@ -434,18 +433,20 @@ pub fn parse_nquads(dataset: &str) -> Dataset {
                 // println!("22222 {:?}", captured[2].range());
                 // println!("33333 {:?}", captured[3].range());
                 // println!("44444 {:?}", captured[4].range());
+                // println!("44444 {:?}", captured);
                 // println!("55555 {:?}", captured[4].range());
                 // println!("66666 {:?}", captured[4].range());
                 // println!("77777 {:?}", captured[4].range());
+
                 let object;
-                if captured[4].range() != zero_range {
+                if captured[4].is_active() {
                   object = Object {
                     term_type: TermType::NamedNode,
                     value: &line[captured[4].range()],
                     datatype: None,
                     language: None,
                   };
-                } else if captured[5].range() != zero_range {
+                } else if captured[5].is_active() {
                   object = Object {
                     term_type: TermType::BlankNode,
                     value: &line[captured[5].range()],
@@ -458,7 +459,7 @@ pub fn parse_nquads(dataset: &str) -> Dataset {
                   // let unescaped = unescape_string(&escaped);
                   let should_be_unescaped = &line[captured[6].range()];
                   if captured.len() >= 8 {
-                    if captured[7].range() != zero_range {
+                    if captured[7].is_active() {
                       object = Object {
                         term_type: TermType::Literal,
                         value: &should_be_unescaped,
@@ -485,7 +486,7 @@ pub fn parse_nquads(dataset: &str) -> Dataset {
                 // println!("OOOOOOO {:?}", object);
                 let graph;
                 if captured.len() >= 10 {
-                  if captured[9].range() != zero_range {
+                  if captured[9].is_active() {
                     graph = Graph {
                       term_type: TermType::NamedNode,
                       value: &line[captured[9].range()],
