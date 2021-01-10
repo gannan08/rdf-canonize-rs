@@ -401,12 +401,12 @@ where
 
 pub fn parse_nquads(dataset: &str) -> Dataset {
   let mut rdf_dataset = Dataset::new();
-  let hyper_scratch: Scratch = HYPER_DB.alloc_scratch().unwrap();
 
   let mut errors = vec![];
   let zero_range = std::ops::Range {start: 0, end: 0};
 
   for line in dataset.lines() {
+      let hyper_scratch: Scratch = HYPER_DB.alloc_scratch().unwrap();
       HYPER_DB.scan(
         line,
         &hyper_scratch,
@@ -428,8 +428,15 @@ pub fn parse_nquads(dataset: &str) -> Dataset {
                   value: &line[captured[3].range()],
                 };
                 // println!("PPPPPPPP {:?}", predicate);
-                println!("PPPPPP {:?}", line);
-                println!("QQQQQQq {:?}", captured[4].range());
+                // println!("PPPPPP {:?}", line);
+                // println!("00000 {:?}", captured[0].range());
+                // println!("11111 {:?}", captured[1].range());
+                // println!("22222 {:?}", captured[2].range());
+                // println!("33333 {:?}", captured[3].range());
+                // println!("44444 {:?}", captured[4].range());
+                // println!("55555 {:?}", captured[4].range());
+                // println!("66666 {:?}", captured[4].range());
+                // println!("77777 {:?}", captured[4].range());
                 let object;
                 if captured[4].range() != zero_range {
                   object = Object {
@@ -450,20 +457,22 @@ pub fn parse_nquads(dataset: &str) -> Dataset {
                   // let escaped = String::from(group.get(6).unwrap().as_str());
                   // let unescaped = unescape_string(&escaped);
                   let should_be_unescaped = &line[captured[6].range()];
-                  if captured[7].range() != zero_range {
-                    object = Object {
-                      term_type: TermType::Literal,
-                      value: &should_be_unescaped,
-                      datatype: Some(String::from(&line[captured[7].range()])),
-                      language: None,
-                    };
-                  } else if captured[8].range() != zero_range {
-                    object = Object {
-                      term_type: TermType::Literal,
-                      value: &should_be_unescaped,
-                      datatype: Some(String::from(RDF_LANGSTRING)),
-                      language: Some(String::from(&line[captured[8].range()])),
-                    };
+                  if captured.len() >= 8 {
+                    if captured[7].range() != zero_range {
+                      object = Object {
+                        term_type: TermType::Literal,
+                        value: &should_be_unescaped,
+                        datatype: Some(String::from(&line[captured[7].range()])),
+                        language: None,
+                      };
+                    } else {
+                      object = Object {
+                        term_type: TermType::Literal,
+                        value: &should_be_unescaped,
+                        datatype: Some(String::from(RDF_LANGSTRING)),
+                        language: Some(String::from(&line[captured[8].range()])),
+                      };
+                    }
                   } else {
                     object = Object {
                       term_type: TermType::Literal,
