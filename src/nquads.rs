@@ -105,18 +105,18 @@ impl<'a> Term<'a> for Predicate<'a> {
 }
 
 #[derive(Clone, Debug, PartialEq)]
-pub struct Object<'a> {
+pub struct Object {
   pub term_type: TermType,
-  pub value: &'a str,
+  pub value: String,
   pub datatype: Option<String>,
   pub language: Option<String>,
 }
 
-impl<'a> Term<'a> for Object<'a> {
-  fn new() -> Object<'a> {
+impl Term<'_> for Object {
+  fn new() -> Object {
     Object {
       term_type: TermType::None,
-      value: "",
+      value: "".to_string(),
       datatype: None,
       language: None,
     }
@@ -134,12 +134,12 @@ impl<'a> Term<'a> for Object<'a> {
     &self.value
   }
 
-  fn set_value(&mut self, value: &'a str) {
-    self.value = value;
+  fn set_value(&mut self, value: &str) {
+    self.value = value.to_string();
   }
 }
 
-impl Object<'_> {
+impl Object {
   pub fn get_language(&self) -> Option<String> {
     self.language.clone()
   }
@@ -199,7 +199,7 @@ pub trait QuadSerialize<'a> {
 pub struct QuadRef<'a> {
   pub subject: &'a Subject<'a>,
   pub predicate: &'a Predicate<'a>,
-  pub object: &'a Object<'a>,
+  pub object: &'a Object,
   pub graph: &'a Graph<'a>,
 }
 
@@ -225,7 +225,7 @@ impl QuadSerialize<'_> for QuadRef<'_> {
 pub struct Quad<'a> {
   pub subject: Subject<'a>,
   pub predicate: Predicate<'a>,
-  pub object: Object<'a>,
+  pub object: Object,
   pub graph: Graph<'a>,
 }
 
@@ -342,7 +342,7 @@ where
   } else {
     // append "\"escape(object.value)\""
     nquad.push('\"');
-    nquad.push_str(&escape_string(o.value));
+    nquad.push_str(&escape_string(o.value.clone()));
     nquad.push('\"');
     if let Some(datatype) = &o.datatype {
       if datatype == RDF_LANGSTRING {
@@ -421,41 +421,41 @@ pub fn parse_nquads(dataset: &str) -> Dataset {
       if let Some(value) = group.get(4) {
         object = Object {
           term_type: TermType::NamedNode,
-          value: value.as_str(),
+          value: String::from(value.as_str()),
           datatype: None,
           language: None,
         };
       } else if let Some(value) = group.get(5) {
         object = Object {
           term_type: TermType::BlankNode,
-          value: value.as_str(),
+          value: String::from(value.as_str()),
           datatype: None,
           language: None,
         };
       } else {
         // FIXME: how to do this!?
-        // let escaped = String::from(group.get(6).unwrap().as_str());
-        // let unescaped = unescape_string(&escaped);
-        let should_be_unescacped = group.get(6).unwrap().as_str();
+        let escaped = String::from(group.get(6).unwrap().as_str());
+        let unescaped = unescape_string(&escaped);
+        // let should_be_unescacped = group.get(6).unwrap().as_str();
 
         if let Some(datatype) = group.get(7) {
           object = Object {
             term_type: TermType::Literal,
-            value: &should_be_unescacped,
+            value: unescaped,
             datatype: Some(String::from(datatype.as_str())),
             language: None,
           };
         } else if let Some(language) = group.get(8) {
           object = Object {
             term_type: TermType::Literal,
-            value: &should_be_unescacped,
+            value: unescaped,
             datatype: Some(String::from(RDF_LANGSTRING)),
             language: Some(String::from(language.as_str())),
           };
         } else {
           object = Object {
             term_type: TermType::Literal,
-            value: &should_be_unescacped,
+            value: unescaped,
             datatype: Some(String::from(XSD_STRING)),
             language: None,
           }
@@ -822,24 +822,24 @@ fn escape_string<'a, S: Into<Cow<'a, str>>>(input: S) -> Cow<'a, str> {
   input
 }
 
-// fn unescape_string(escaped: &str) -> String {
-//   let mut unescaped = escaped.to_string();
+fn unescape_string(escaped: &str) -> String {
+    let mut unescaped = escaped.to_string();
 
-//   unescaped = unescaped.replace("\\t", "\t");
-//   // Must use hex for escape sequence
-//   // see: https://github.com/rust-lang/rfcs/issues/751
-//   unescaped = unescaped.replace("\\b", "\x08");
-//   unescaped = unescaped.replace("\\n", "\n");
-//   unescaped = unescaped.replace("\\r", "\r");
-//   // Must use hex for escape sequence
-//   // see: https://github.com/rust-lang/rfcs/issues/751
-//   unescaped = unescaped.replace("\\f", "\x0C");
-//   unescaped = unescaped.replace("\\\"", "\"");
-//   unescaped = unescaped.replace("\'", "'");
-//   unescaped = unescaped.replace("\\\\", "\\");
+    unescaped = unescaped.replace("\\t", "\t");
+    // Must use hex for escape sequence
+    // see: https://github.com/rust-lang/rfcs/issues/751
+    unescaped = unescaped.replace("\\b", "\x08");
+    unescaped = unescaped.replace("\\n", "\n");
+    unescaped = unescaped.replace("\\r", "\r");
+    // Must use hex for escape sequence
+    // see: https://github.com/rust-lang/rfcs/issues/751
+    unescaped = unescaped.replace("\\f", "\x0C");
+    unescaped = unescaped.replace("\\\"", "\"");
+    unescaped = unescaped.replace("\'", "'");
+    unescaped = unescaped.replace("\\\\", "\\");
 
-//   unescaped
-// }
+    unescaped
+}
 
 #[cfg(test)]
 mod tests {
@@ -901,13 +901,13 @@ mod tests {
   fn object_equals() {
     let object_a = Object {
       term_type: TermType::NamedNode,
-      value: "ganesh",
+      value: "ganesh".to_string(),
       datatype: Some(String::from("http://example.com/t2")),
       language: None,
     };
     let object_b = Object {
       term_type: TermType::NamedNode,
-      value: "ganesh",
+      value: "ganesh".to_string(),
       datatype: Some(String::from("http://example.com/t2")),
       language: None,
     };
@@ -918,13 +918,13 @@ mod tests {
   fn object_not_equals() {
     let object_a = Object {
       term_type: TermType::NamedNode,
-      value: "ganesh",
+      value: "ganesh".to_string(),
       datatype: Some(String::from("http://example.com/t2")),
       language: None,
     };
     let object_b = Object {
       term_type: TermType::NamedNode,
-      value: "ganesh",
+      value: "ganesh".to_string(),
       datatype: Some(String::from("http://example.com/t2")),
       language: Some(String::from("fr")),
     };
@@ -969,7 +969,7 @@ mod tests {
     };
     let object = Object {
       term_type: TermType::NamedNode,
-      value: "ganesh",
+      value: "ganesh".to_string(),
       datatype: Some(String::from("http://example.com/t2")),
       language: None,
     };
@@ -1005,7 +1005,7 @@ mod tests {
     };
     let object = Object {
       term_type: TermType::NamedNode,
-      value: "ganesh",
+      value: "ganesh".to_string(),
       datatype: Some(String::from("http://example.com/t2")),
       language: None,
     };

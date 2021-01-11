@@ -201,7 +201,7 @@ impl<'b> URDNA2015<'b> {
           value: self
             .canonical_issuer
             .get_existing_id(&quad.object.value)
-            .unwrap(),
+            .unwrap().to_string(),
           datatype: quad.object.get_datatype(),
           language: quad.object.get_language(),
         };
@@ -287,9 +287,9 @@ impl<'b> URDNA2015<'b> {
         o = nquads::Object {
           term_type: TermType::BlankNode,
           value: if quad.object.value == id {
-            "_:a"
+            "_:a".to_string()
           } else {
-            "_:z"
+            "_:z".to_string()
           },
           datatype: quad.object.get_datatype(),
           language: quad.object.get_language(),
