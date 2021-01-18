@@ -4,6 +4,8 @@ use regex::Regex;
 use std::borrow::Cow;
 use std::collections::HashMap;
 
+use rayon::prelude::*;
+
 // define default capacities
 pub const DEFAULT_NQUAD_CAPACITY: usize = 256;
 pub const DEFAULT_TERM_CAPACITY: usize = 64;
@@ -265,35 +267,35 @@ pub type QuadSet = Vec<Quad>;
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct Dataset {
   pub quads: QuadSet,
-  graph_map: HashMap<String, Vec<usize>>,
+  // graph_map: HashMap<String, Vec<usize>>,
 }
 
 impl Dataset {
   pub fn new() -> Dataset {
     Dataset {
       quads: Vec::new(),
-      graph_map: HashMap::new(),
+      // graph_map: HashMap::new(),
     }
   }
 
-  pub fn add(&mut self, quad: Quad) -> bool {
-    let graph = quad.graph.clone();
-    let graph_name = graph.value;
-    match self.graph_map.get_mut(&graph_name) {
-      Some(quad_ptrs) => {
-        quad_ptrs.push(self.quads.len());
-      }
-      None => {
-        let mut quad_ptrs = Vec::new();
-        quad_ptrs.push(self.quads.len());
-        self.graph_map.insert(graph_name, quad_ptrs);
-      }
-    }
+  // pub fn add(&mut self, quad: Quad) -> bool {
+  //   let graph = quad.graph.clone();
+  //   let graph_name = graph.value;
+  //   match self.graph_map.get_mut(&graph_name) {
+  //     Some(quad_ptrs) => {
+  //       quad_ptrs.push(self.quads.len());
+  //     }
+  //     None => {
+  //       let mut quad_ptrs = Vec::new();
+  //       quad_ptrs.push(self.quads.len());
+  //       self.graph_map.insert(graph_name, quad_ptrs);
+  //     }
+  //   }
 
-    self.quads.push(quad);
+  //   self.quads.push(quad);
 
-    true
-  }
+  //   true
+  // }
 }
 
 pub fn serialize_quad<'a, T>(quad: &'a T) -> String
@@ -379,16 +381,12 @@ where
   nquad
 }
 pub fn parse_nquads(dataset: &str) -> Dataset {
-  let lines = dataset.lines();
-
-  let mut rdf_dataset = Dataset::new();
-
-  for line in lines {
+  let quads: QuadSet = dataset.par_lines().map(|line| {
     let quad = parse_nquad(&line);
-    rdf_dataset.add(quad);
-  }
+    quad
+  }).collect();
 
-  rdf_dataset
+  Dataset {quads}
 }
 
 lazy_static! {
