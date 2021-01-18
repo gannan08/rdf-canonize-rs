@@ -2,7 +2,6 @@ extern crate regex;
 
 use regex::Regex;
 use std::borrow::Cow;
-use std::collections::HashMap;
 
 // define default capacities
 pub const DEFAULT_NQUAD_CAPACITY: usize = 256;
@@ -265,35 +264,6 @@ pub type QuadSet = Vec<Quad>;
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct Dataset {
   pub quads: QuadSet,
-  graph_map: HashMap<String, Vec<usize>>,
-}
-
-impl Dataset {
-  pub fn new() -> Dataset {
-    Dataset {
-      quads: Vec::new(),
-      graph_map: HashMap::new(),
-    }
-  }
-
-  pub fn add(&mut self, quad: Quad) -> bool {
-    let graph = quad.graph.clone();
-    let graph_name = graph.value;
-    match self.graph_map.get_mut(&graph_name) {
-      Some(quad_ptrs) => {
-        quad_ptrs.push(self.quads.len());
-      }
-      None => {
-        let mut quad_ptrs = Vec::new();
-        quad_ptrs.push(self.quads.len());
-        self.graph_map.insert(graph_name, quad_ptrs);
-      }
-    }
-
-    self.quads.push(quad);
-
-    true
-  }
 }
 
 pub fn serialize_quad<'a, T>(quad: &'a T) -> String
@@ -378,17 +348,11 @@ where
   nquad.push('\n');
   nquad
 }
+
 pub fn parse_nquads(dataset: &str) -> Dataset {
-  let lines = dataset.lines();
+  let quads = dataset.lines().map(parse_nquad).collect();
 
-  let mut rdf_dataset = Dataset::new();
-
-  for line in lines {
-    let quad = parse_nquad(&line);
-    rdf_dataset.add(quad);
-  }
-
-  rdf_dataset
+  Dataset {quads}
 }
 
 lazy_static! {
