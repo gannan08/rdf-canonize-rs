@@ -569,13 +569,9 @@ impl<'b> URDNA2015<'b> {
 
     // 5.3.2) Add hash and identifier to hash to blank nodes map,
     // creating a new entry if necessary.
-    match hash_to_blank_nodes.get_mut(&hash) {
-      Some(id_list) => id_list.push(id.to_string()),
-      None => {
-        let ids = vec![id.to_string()];
-        hash_to_blank_nodes.insert(hash, ids);
-      }
-    }
+    hash_to_blank_nodes.entry(hash)
+      .and_modify(|e| e.push(id.to_string()))
+      .or_insert(vec![id.to_string()]);
   }
 
   fn add_blank_node_quad_info<'a, T>(&'a mut self, quad: &'b Quad, component: &T)
