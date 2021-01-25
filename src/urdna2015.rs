@@ -613,11 +613,9 @@ impl<'b> URDNA2015<'b> {
     // 3.1.2) Add a mapping of hash to the blank node identifier for
     // component to hash to related blank nodes map, adding an entry as
     // necessary.
-    if let Some(entries) = hash_to_related.get_mut(&hash) {
-      entries.push(related.to_string());
-    } else {
-      hash_to_related.insert(hash, vec![related.to_string()]);
-    }
+    hash_to_related.entry(hash)
+      .and_modify(|e| e.push(related.to_string()))
+      .or_insert(vec![related.to_string()]);
   }
 
   fn should_use_canonical_id<T>(copy: &T, issuer: &IdentifierIssuer) -> bool
