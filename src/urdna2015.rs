@@ -583,14 +583,9 @@ impl<'b> URDNA2015<'b> {
     }
 
     let id = component.get_value();
-    if let Some(info) = self.blank_node_info.get_mut(id) {
-      info.quads.push(quad);
-    } else {
-      let quads = vec![quad];
-      self
-        .blank_node_info
-        .insert(id.to_string(), BlankNodeInfo { quads, hash: None });
-    }
+    self.blank_node_info.entry(id.to_string())
+      .and_modify(|e| e.quads.push(quad))
+      .or_insert(BlankNodeInfo { quads: vec![quad], hash: None });
   }
 
   fn add_related_blank_node_hash<'a, T>(
